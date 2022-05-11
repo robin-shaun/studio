@@ -386,6 +386,12 @@ export function ImageCanvas(props: Props): JSX.Element {
     });
   }, [panX, panY, saveConfig, scaleValue]);
 
+  useLayoutEffect(() => {
+    setZoomMode(config.mode);
+    setZoom(config.zoom ?? 1);
+    setPan(config.pan ?? { x: 0, y: 0 });
+  }, [config.mode, config.pan, config.zoom, setPan, setZoom]);
+
   const zoomContextMenu = useMemo(() => {
     return (
       <div className={classes.zoomContextMenu}>

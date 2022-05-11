@@ -3,11 +3,10 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
-import CheckIcon from "@mui/icons-material/Check";
 import { Button, Menu, MenuItem, TextField, styled as muiStyled } from "@mui/material";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
-import Stack from "@foxglove/studio-base/components/Stack";
+import { Config } from "../types";
 
 const StyledButton = muiStyled(Button)(({ theme }) => ({
   backgroundColor: "transparent",
@@ -25,20 +24,34 @@ const StyledButton = muiStyled(Button)(({ theme }) => ({
   },
 }));
 
-export function ZoomMenu(): JSX.Element {
-  const [zoom, setZoom] = useState<number>(100);
+export function ZoomMenu({
+  zoom,
+  setPanZoom,
+}: {
+  zoom: number;
+  setPanZoom: (panZoom: Pick<Config, "zoom" | "pan" | "mode">) => void;
+}): JSX.Element {
   const [editing, setEditing] = useState<boolean>(false);
   const [anchorEl, setAnchorEl] = useState<undefined | HTMLElement>(undefined);
 
-  const zoomPercentage = `${zoom}%`;
+  const zoomPercentage = `${Math.round(100 * zoom)}%`;
   const open = Boolean(anchorEl);
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     setAnchorEl(event.currentTarget);
   };
+
   const handleClose = () => {
     setAnchorEl(undefined);
   };
+
+  const setTextPercentage = useCallback(
+    (textPercentage: string) => {
+      const newPercent = Number(textPercentage) / 100;
+      setPanZoom({ zoom: newPercent });
+    },
+    [setPanZoom],
+  );
 
   return (
     <>
@@ -70,12 +83,12 @@ export function ZoomMenu(): JSX.Element {
           <div style={{ marginLeft: -8, marginRight: -8 }}>
             {editing ? (
               <TextField
-                onChange={(event) => setZoom(event.target.value)}
+                // onChange={(event) => setTextPercentage(event.target.value)}
                 onBlur={(event) => {
-                  setZoom(Math.round(event.target.value));
+                  setTextPercentage(event.target.value);
                   setEditing(false);
                 }}
-                value={zoom}
+                value={zoom * 100}
                 type="number"
                 size="small"
               />
@@ -89,20 +102,21 @@ export function ZoomMenu(): JSX.Element {
             )}
           </div>
         </MenuItem>
-        <MenuItem onClick={handleClose}>Zoom in</MenuItem>
-        <MenuItem divider onClick={handleClose}>
+        <MenuItem onClick={() => setPanZoom({ zoom: zoom * 1.1 })}>Zoom in</MenuItem>
+        <MenuItem divider onClick={() => setPanZoom({ zoom: zoom * 0.9 })}>
           Zoom out
         </MenuItem>
-        <MenuItem onClick={handleClose}>Zoom to 100%</MenuItem>
-        <MenuItem onClick={handleClose}>Zoom to fit</MenuItem>
-        <MenuItem divider onClick={handleClose}>
-          Zoom to fill
+        <MenuItem onClick={() => setPanZoom({ zoom: 1, pan: { x: 0, y: 0 } })}>
+          Zoom to 100%
         </MenuItem>
-        <MenuItem onClick={handleClose}>
-          <Stack flex="auto" direction="row" justifyContent="space-between" alignItems="center">
-            Scroll to zoom
-            <CheckIcon fontSize="small" />
-          </Stack>
+        <MenuItem onClick={() => setPanZoom({ zoom: 1, mode: "fit", pan: { x: 0, y: 0 } })}>
+          Zoom to fit
+        </MenuItem>
+        <MenuItem
+          divider
+          onClick={() => setPanZoom({ zoom: 1, mode: "fill", pan: { x: 0, y: 0 } })}
+        >
+          Zoom to fill
         </MenuItem>
       </Menu>
     </>

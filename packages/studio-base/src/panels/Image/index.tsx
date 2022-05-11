@@ -293,9 +293,19 @@ function ImageView(props: Props) {
 
   const showEmptyState = !image;
 
+  const setPanZoom = useCallback(
+    (panZoom: Pick<Config, "zoom" | "pan" | "mode">) => {
+      saveConfig(panZoom);
+    },
+    [saveConfig],
+  );
+
   return (
     <Stack flex="auto" overflow="hidden" position="relative">
-      <PanelToolbar helpContent={helpContent} additionalIcons={<ZoomMenu />}>
+      <PanelToolbar
+        helpContent={helpContent}
+        additionalIcons={<ZoomMenu zoom={config.zoom ?? 1} setPanZoom={setPanZoom} />}
+      >
         <div className={classes.controls}>{imageTopicDropdown}</div>
       </PanelToolbar>
       <Stack width="100%" height="100%">
