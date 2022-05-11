@@ -26,7 +26,11 @@ const StyledButton = muiStyled(Button)(({ theme }) => ({
 }));
 
 export function ZoomMenu(): JSX.Element {
+  const [zoom, setZoom] = useState<number>(100);
+  const [editing, setEditing] = useState<boolean>(false);
   const [anchorEl, setAnchorEl] = useState<undefined | HTMLElement>(undefined);
+
+  const zoomPercentage = `${zoom}%`;
   const open = Boolean(anchorEl);
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -50,7 +54,7 @@ export function ZoomMenu(): JSX.Element {
         onClick={handleClick}
         endIcon={<ArrowDropDownIcon />}
       >
-        77%
+        {zoomPercentage}
       </StyledButton>
       <Menu
         id="zoom-menu"
@@ -64,7 +68,25 @@ export function ZoomMenu(): JSX.Element {
       >
         <MenuItem divider>
           <div style={{ marginLeft: -8, marginRight: -8 }}>
-            <TextField defaultValue="77%" size="small" />
+            {editing ? (
+              <TextField
+                onChange={(event) => setZoom(event.target.value)}
+                onBlur={(event) => {
+                  setZoom(Math.round(event.target.value));
+                  setEditing(false);
+                }}
+                value={zoom}
+                type="number"
+                size="small"
+              />
+            ) : (
+              <TextField
+                onFocus={() => setEditing(true)}
+                value={zoomPercentage}
+                type="text"
+                size="small"
+              />
+            )}
           </div>
         </MenuItem>
         <MenuItem onClick={handleClose}>Zoom in</MenuItem>
