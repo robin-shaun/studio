@@ -7,3 +7,4 @@ export * from "./ImageEmptyState";
 export * from "./Toolbar";
 export * from "./TopicDropdown";
 export * from "./TopicTimestamp";
+export * from "./ZoomMenu";
