@@ -4,7 +4,7 @@
 
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import { Button, Menu, MenuItem, TextField, styled as muiStyled } from "@mui/material";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { Config } from "../types";
 
@@ -31,10 +31,11 @@ export function ZoomMenu({
   zoom: number;
   setPanZoom: (panZoom: Pick<Config, "zoom" | "pan" | "mode">) => void;
 }): JSX.Element {
-  const [editing, setEditing] = useState<boolean>(false);
+  const zoomPercentage = `${Math.round(100 * zoom)}%`;
+
+  const [localZoom, setLocalZoom] = useState(zoomPercentage);
   const [anchorEl, setAnchorEl] = useState<undefined | HTMLElement>(undefined);
 
-  const zoomPercentage = `${Math.round(100 * zoom)}%`;
   const open = Boolean(anchorEl);
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -45,12 +46,17 @@ export function ZoomMenu({
     setAnchorEl(undefined);
   };
 
-  const setTextPercentage = useCallback(
-    (textPercentage: string) => {
-      const newPercent = Number(textPercentage) / 100;
-      setPanZoom({ zoom: newPercent });
+  useEffect(() => {
+    setLocalZoom(zoomPercentage);
+  }, [zoomPercentage]);
+
+  const onLocalZoomKeyDown = useCallback(
+    (event: React.KeyboardEvent) => {
+      if (event.key === "Enter") {
+        setPanZoom({ zoom: parseFloat(localZoom) / 100 });
+      }
     },
-    [setPanZoom],
+    [localZoom, setPanZoom],
   );
 
   return (
@@ -81,25 +87,12 @@ export function ZoomMenu({
       >
         <MenuItem divider>
           <div style={{ marginLeft: -8, marginRight: -8 }}>
-            {editing ? (
-              <TextField
-                // onChange={(event) => setTextPercentage(event.target.value)}
-                onBlur={(event) => {
-                  setTextPercentage(event.target.value);
-                  setEditing(false);
-                }}
-                value={zoom * 100}
-                type="number"
-                size="small"
-              />
-            ) : (
-              <TextField
-                onFocus={() => setEditing(true)}
-                value={zoomPercentage}
-                type="text"
-                size="small"
-              />
-            )}
+            <TextField
+              onKeyDown={onLocalZoomKeyDown}
+              onChange={(event) => setLocalZoom(event.target.value)}
+              value={localZoom}
+              size="small"
+            />
           </div>
         </MenuItem>
         <MenuItem onClick={() => setPanZoom({ zoom: zoom * 1.1 })}>Zoom in</MenuItem>
