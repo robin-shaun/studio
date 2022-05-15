@@ -3,7 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
-import { Button, Menu, MenuItem, TextField, styled as muiStyled } from "@mui/material";
+import { Button, Menu, MenuItem, TextField, styled as muiStyled, Divider } from "@mui/material";
 import { useCallback, useEffect, useState } from "react";
 
 import { Config } from "../types";
@@ -21,6 +21,15 @@ const StyledButton = muiStyled(Button)(({ theme }) => ({
   },
   "&:focus, &[aria-expanded='true']": {
     backgroundColor: theme.palette.action.focus,
+  },
+}));
+
+const StyledMenuItem = muiStyled(MenuItem)(({ theme }) => ({
+  padding: theme.spacing(1),
+  margin: theme.spacing(-1, 0),
+
+  "&:hover, &:focus-within": {
+    backgroundColor: "transparent",
   },
 }));
 
@@ -82,33 +91,28 @@ export function ZoomMenu({
         onClose={handleClose}
         MenuListProps={{
           "aria-labelledby": "zoom-button",
-          disablePadding: true,
         }}
       >
-        <MenuItem divider>
-          <div style={{ marginLeft: -8, marginRight: -8 }}>
-            <TextField
-              onKeyDown={onLocalZoomKeyDown}
-              onChange={(event) => setLocalZoom(event.target.value)}
-              value={localZoom}
-              size="small"
-            />
-          </div>
-        </MenuItem>
+        <StyledMenuItem>
+          <TextField
+            autoFocus={open}
+            onKeyDown={onLocalZoomKeyDown}
+            onChange={(event) => setLocalZoom(event.target.value)}
+            value={localZoom}
+            size="small"
+          />
+        </StyledMenuItem>
+        <Divider />
         <MenuItem onClick={() => setPanZoom({ zoom: zoom * 1.1 })}>Zoom in</MenuItem>
-        <MenuItem divider onClick={() => setPanZoom({ zoom: zoom * 0.9 })}>
-          Zoom out
-        </MenuItem>
+        <MenuItem onClick={() => setPanZoom({ zoom: zoom * 0.9 })}>Zoom out</MenuItem>
+        <Divider />
         <MenuItem onClick={() => setPanZoom({ zoom: 1, pan: { x: 0, y: 0 } })}>
           Zoom to 100%
         </MenuItem>
         <MenuItem onClick={() => setPanZoom({ zoom: 1, mode: "fit", pan: { x: 0, y: 0 } })}>
           Zoom to fit
         </MenuItem>
-        <MenuItem
-          divider
-          onClick={() => setPanZoom({ zoom: 1, mode: "fill", pan: { x: 0, y: 0 } })}
-        >
+        <MenuItem onClick={() => setPanZoom({ zoom: 1, mode: "fill", pan: { x: 0, y: 0 } })}>
           Zoom to fill
         </MenuItem>
       </Menu>
