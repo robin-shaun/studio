@@ -57,6 +57,7 @@ import MapMarkerIcon from "@mdi/svg/svg/map-marker.svg";
 import MenuDownIcon from "@mdi/svg/svg/menu-down.svg";
 import MenuLeftIcon from "@mdi/svg/svg/menu-left.svg";
 import CompassOutlineIcon from "@mdi/svg/svg/navigation.svg";
+import OpenInAppIcon from "@mdi/svg/svg/open-in-app.svg";
 import PencilIcon from "@mdi/svg/svg/pencil.svg";
 import PinIcon from "@mdi/svg/svg/pin.svg";
 import PlusCircleOutlineIcon from "@mdi/svg/svg/plus-circle-outline.svg";
@@ -156,6 +157,7 @@ const icons: {
   NextFilled: <Next20Filled />,
   OpenFile: <Icons.OpenFileIcon />,
   OpenFolder: <Icons.OpenFolderHorizontalIcon />,
+  OpenInApp: <OpenInAppIcon />,
   Pause: <Pause20Regular />,
   PauseFilled: <Pause20Filled />,
   Pencil: <PencilIcon />,

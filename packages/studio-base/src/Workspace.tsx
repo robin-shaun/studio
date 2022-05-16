@@ -100,6 +100,7 @@ const useStyles = makeStyles({
 });
 
 type SidebarItemKey =
+  | "website"
   | "connection"
   | "add-panel"
   | "panel-settings"
@@ -492,31 +493,51 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
     };
   }, []);
 
+  const commonSidebarItems = useMemo<Map<SidebarItemKey, SidebarItem>>(
+    () =>
+      new Map<SidebarItemKey, SidebarItem>([
+        [
+          "connection",
+          {
+            iconName: "DataManagementSettings",
+            title: "Data source",
+            component: DataSourceSidebarItem,
+            badge:
+              playerProblems && playerProblems.length > 0
+                ? { count: playerProblems.length }
+                : undefined,
+          },
+        ],
+        ["layouts", { iconName: "FiveTileGrid", title: "Layouts", component: LayoutBrowser }],
+        ["add-panel", { iconName: "RectangularClipping", title: "Add panel", component: AddPanel }],
+        [
+          "panel-settings",
+          { iconName: "SingleColumnEdit", title: "Panel settings", component: PanelSettings },
+        ],
+        ["variables", { iconName: "Variable2", title: "Variables", component: Variables }],
+        ["preferences", { iconName: "Settings", title: "Preferences", component: Preferences }],
+        ["extensions", { iconName: "AddIn", title: "Extensions", component: ExtensionsSidebar }],
+        ["help", { iconName: "QuestionCircle", title: "Help", component: HelpSidebar }],
+      ]),
+    [DataSourceSidebarItem, playerProblems],
+  );
+
   const sidebarItems = useMemo<Map<SidebarItemKey, SidebarItem>>(() => {
-    const SIDEBAR_ITEMS = new Map<SidebarItemKey, SidebarItem>([
-      [
-        "connection",
-        {
-          iconName: "DataManagementSettings",
-          title: "Data source",
-          component: DataSourceSidebarItem,
-          badge:
-            playerProblems && playerProblems.length > 0
-              ? { count: playerProblems.length }
-              : undefined,
-        },
-      ],
-      ["layouts", { iconName: "FiveTileGrid", title: "Layouts", component: LayoutBrowser }],
-      ["add-panel", { iconName: "RectangularClipping", title: "Add panel", component: AddPanel }],
-      [
-        "panel-settings",
-        { iconName: "SingleColumnEdit", title: "Panel settings", component: PanelSettings },
-      ],
-      ["variables", { iconName: "Variable2", title: "Variables", component: Variables }],
-      ["preferences", { iconName: "Settings", title: "Preferences", component: Preferences }],
-      ["extensions", { iconName: "AddIn", title: "Extensions", component: ExtensionsSidebar }],
-      ["help", { iconName: "QuestionCircle", title: "Help", component: HelpSidebar }],
-    ]);
+    const SIDEBAR_ITEMS = new Map<SidebarItemKey, SidebarItem>(
+      nativeAppMenu
+        ? commonSidebarItems
+        : [
+            [
+              "website",
+              {
+                iconName: "OpenInApp",
+                title: "Foxglove website",
+                link: "https://foxglove.dev",
+              },
+            ],
+            ...commonSidebarItems,
+          ],
+    );
 
     return supportsAccountSettings
       ? new Map([
@@ -531,7 +552,7 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
           ],
         ])
       : SIDEBAR_ITEMS;
-  }, [DataSourceSidebarItem, playerProblems, supportsAccountSettings, currentUser]);
+  }, [commonSidebarItems, currentUser, nativeAppMenu, supportsAccountSettings]);
 
   const sidebarBottomItems: readonly SidebarItemKey[] = useMemo(() => {
     return supportsAccountSettings ? ["help", "account", "preferences"] : ["help", "preferences"];

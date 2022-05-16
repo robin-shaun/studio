@@ -7,6 +7,7 @@ import {
   IContextualMenuProps,
   IIconProps,
   IRenderFunction,
+  Link,
 } from "@fluentui/react";
 import { Box, Stack, useTheme } from "@mui/material";
 import { useCallback } from "react";
@@ -28,10 +29,11 @@ type SidebarButtonProps = {
   onClick?: () => void;
   menuProps?: IContextualMenuProps;
   badge?: Badge;
+  link?: string;
 };
 
 export default function SidebarButton(props: SidebarButtonProps): JSX.Element {
-  const { dataSidebarKey, selected, title, iconProps, onClick, menuProps, badge } = props;
+  const { dataSidebarKey, selected, title, iconProps, onClick, menuProps, badge, link } = props;
   const theme = useTheme();
 
   const { ref: tooltipRef, tooltip } = useTooltip({ contents: title, placement: "right" });
@@ -55,28 +57,32 @@ export default function SidebarButton(props: SidebarButtonProps): JSX.Element {
     [badge],
   );
 
+  const commandBarButtonComponent = (
+    <CommandBarButton
+      data-sidebar-key={dataSidebarKey}
+      styles={{
+        root: { height: BUTTON_SIZE, margin: 0, backgroundColor: "transparent" },
+        icon: {
+          opacity: selected ? 1 : FADED_OPACITY,
+          fontSize: ICON_SIZE,
+          height: ICON_SIZE,
+          lineHeight: ICON_SIZE,
+
+          svg: { fill: "currentColor", height: "1em", width: "1em" },
+        },
+      }}
+      iconProps={iconProps}
+      onClick={link ? () => window.open(link, "_blank") : onClick}
+      onRenderIcon={renderIcon}
+      menuProps={menuProps}
+      onRenderMenuIcon={() => ReactNull}
+    />
+  );
+
   return (
     <Stack component={renderStack} position="relative" flexGrow={1}>
       {tooltip}
-      <CommandBarButton
-        data-sidebar-key={dataSidebarKey}
-        styles={{
-          root: { height: BUTTON_SIZE, margin: 0, backgroundColor: "transparent" },
-          icon: {
-            opacity: selected ? 1 : FADED_OPACITY,
-            fontSize: ICON_SIZE,
-            height: ICON_SIZE,
-            lineHeight: ICON_SIZE,
-
-            svg: { fill: "currentColor", height: "1em", width: "1em" },
-          },
-        }}
-        iconProps={iconProps}
-        onClick={onClick}
-        onRenderIcon={renderIcon}
-        menuProps={menuProps}
-        onRenderMenuIcon={() => ReactNull}
-      />
+      {commandBarButtonComponent}
       {selected && (
         <Box
           style={{

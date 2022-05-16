@@ -32,6 +32,7 @@ export type SidebarItem = {
   badge?: Badge;
   component?: React.ComponentType;
   url?: string;
+  link?: string;
 };
 
 const useStyles = makeStyles((theme: Theme) => ({
@@ -121,8 +122,17 @@ export default function Sidebar<K extends string>({
       if (!item) {
         throw new Error(`Missing sidebar item ${key}`);
       }
-      const { title, iconName } = item;
-      return (
+      const { title, iconName, link } = item;
+      return link ? (
+        <SidebarButton
+          dataSidebarKey={key}
+          key={key}
+          selected={selectedKey === key}
+          title={title}
+          iconProps={{ iconName }}
+          link={link}
+        />
+      ) : (
         <SidebarButton
           dataSidebarKey={key}
           key={key}

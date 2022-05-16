@@ -87,6 +87,7 @@ declare global {
     | "NextFilled"
     | "OpenFile"
     | "OpenFolder"
+    | "OpenInApp"
     | "Pause"
     | "PauseFilled"
     | "Pencil"
