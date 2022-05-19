@@ -11,7 +11,7 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { Divider, Stack, Theme, styled as muiStyled } from "@mui/material";
+import { Stack, Theme } from "@mui/material";
 import { makeStyles } from "@mui/styles";
 import cx from "classnames";
 import produce from "immer";
@@ -308,7 +308,7 @@ function ImageView(props: Props) {
       >
         <div className={classes.controls}>{imageTopicDropdown}</div>
       </PanelToolbar>
-      <Stack width="100%" height="100%">
+      <Stack width="100%" height="100%" position="relative">
         {/* Always render the ImageCanvas because it's expensive to unmount and start up. */}
         {imageMessageToRender && (
           <ImageCanvas
@@ -332,8 +332,8 @@ function ImageView(props: Props) {
           </div>
         )}
         {!showEmptyState && renderBottomBar()}
+        <Toolbar pixelData={activePixelData} />
       </Stack>
-      <Toolbar pixelData={activePixelData} />
     </Stack>
   );
 }

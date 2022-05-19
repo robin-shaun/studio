@@ -10,7 +10,7 @@ import { Config } from "../types";
 
 const StyledButton = muiStyled(Button)(({ theme }) => ({
   backgroundColor: "transparent",
-  padding: theme.spacing(0.125, 0.25, 0.125, 0.75),
+  padding: theme.spacing(0, 0.25, 0, 0.5),
   minWidth: "auto",
 
   ".MuiButton-endIcon": {

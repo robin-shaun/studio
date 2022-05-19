@@ -3,9 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import CursorIcon from "@mdi/svg/svg/cursor-default.svg";
-import { Theme, Typography } from "@mui/material";
-import { makeStyles } from "@mui/styles";
-import cx from "classnames";
+import { Typography, styled as muiStyled } from "@mui/material";
 import { ReactElement, useEffect, useRef, useState } from "react";
 import Tree from "react-json-tree";
 
@@ -13,36 +11,21 @@ import ExpandingToolbar, {
   ToolGroup,
   ToolGroupFixedSizePane,
 } from "@foxglove/studio-base/components/ExpandingToolbar";
+import Stack from "@foxglove/studio-base/components/Stack";
 import { usePanelMousePresence } from "@foxglove/studio-base/hooks/usePanelMousePresence";
 import { useJsonTreeTheme } from "@foxglove/studio-base/util/globalConstants";
 
 import { PixelData } from "../types";
 
-const useStyles = makeStyles((theme: Theme) => ({
-  root: {
-    displauy: "flex",
-    flexDirection: "column",
-    position: "absolute",
-    top: 0,
-    right: 0,
-    marginRight: theme.spacing(2),
-    marginTop: theme.spacing(8),
-    visibility: "hidden",
-    zIndex: "drawer",
-  },
-  visible: {
-    visibility: "visible",
-  },
-  objectPane: {
-    display: "flex",
-    flexDirection: "column",
-    gap: theme.spacing(1),
-  },
-  values: {
-    display: "flex",
-    color: theme.palette.info.main,
-    gap: theme.spacing(1),
-  },
+const Root = muiStyled("div")(({ theme }) => ({
+  display: "flex",
+  flexDirection: "column",
+  position: "absolute",
+  top: 0,
+  right: 0,
+  marginRight: theme.spacing(1),
+  marginTop: theme.spacing(1),
+  zIndex: theme.zIndex.drawer,
 }));
 
 enum TabName {
@@ -50,26 +33,29 @@ enum TabName {
 }
 
 function ObjectPane({ pixelData }: { pixelData: PixelData | undefined }): ReactElement {
-  const classes = useStyles();
   const jsonTreeTheme = useJsonTreeTheme();
 
   return (
-    <div className={classes.objectPane}>
+    <Stack gap={1}>
       <div>
         <Typography variant="caption">Position:</Typography>
-        <div className={classes.values}>
-          <div>X:{pixelData?.position.x}</div>
-          <div>Y:{pixelData?.position.y}</div>
-        </div>
+        <Typography color="info.main">
+          <Stack direction="row" gap={1}>
+            <div>X:{pixelData?.position.x}</div>
+            <div>Y:{pixelData?.position.y}</div>
+          </Stack>
+        </Typography>
       </div>
       <div>
         <Typography variant="caption">Color:</Typography>
-        <div className={classes.values}>
-          <div>R:{pixelData?.color.r}</div>
-          <div>G:{pixelData?.color.g}</div>
-          <div>B:{pixelData?.color.b}</div>
-          <div>A:{pixelData?.color.a}</div>
-        </div>
+        <Typography color="info.main">
+          <Stack direction="row" gap={1}>
+            <div>R:{pixelData?.color.r}</div>
+            <div>G:{pixelData?.color.g}</div>
+            <div>B:{pixelData?.color.b}</div>
+            <div>A:{pixelData?.color.a}</div>
+          </Stack>
+        </Typography>
       </div>
       {pixelData?.marker && (
         <div>
@@ -82,12 +68,11 @@ function ObjectPane({ pixelData }: { pixelData: PixelData | undefined }): ReactE
           />
         </div>
       )}
-    </div>
+    </Stack>
   );
 }
 
 export function Toolbar({ pixelData }: { pixelData: PixelData | undefined }): JSX.Element {
-  const classes = useStyles();
   const ref = useRef<HTMLDivElement>(ReactNull);
   const [selectedTab, setSelectedTab] = useState<TabName | undefined>();
 
@@ -100,12 +85,7 @@ export function Toolbar({ pixelData }: { pixelData: PixelData | undefined }): JS
   const mousePresent = usePanelMousePresence(ref);
 
   return (
-    <div
-      ref={ref}
-      className={cx(classes.root, {
-        [classes.visible]: mousePresent,
-      })}
-    >
+    <Root ref={ref} style={{ visibility: mousePresent ? "visible" : "hidden" }}>
       <ExpandingToolbar
         tooltip="Inspect objects"
         icon={<CursorIcon />}
@@ -122,6 +102,6 @@ export function Toolbar({ pixelData }: { pixelData: PixelData | undefined }): JS
           </ToolGroupFixedSizePane>
         </ToolGroup>
       </ExpandingToolbar>
-    </div>
+    </Root>
   );
 }
