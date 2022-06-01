@@ -44,6 +44,7 @@ export const ShowingDetails: Story = () => {
     <DndProvider backend={HTML5Backend}>
       <PanelErrorBoundary
         showErrorDetails
+        hideErrorSourceLocations
         onRemovePanel={action("onRemovePanel")}
         onResetPanel={action("onResetPanel")}
       >
