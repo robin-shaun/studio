@@ -79,7 +79,7 @@ export function ZoomMenu({
           Zoom to 100%
         </MenuItem>
         <MenuItem onClick={() => setPanZoom({ zoom: 1, mode: "fit", pan: { x: 0, y: 0 } })}>
-          Zoom to fill
+          Zoom to fit
         </MenuItem>
         <MenuItem onClick={() => setPanZoom({ zoom: 1, mode: "fill", pan: { x: 0, y: 0 } })}>
           Zoom to fill
