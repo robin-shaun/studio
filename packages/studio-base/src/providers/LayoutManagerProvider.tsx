@@ -56,12 +56,12 @@ export default function LayoutManagerProvider({
     const controller = new AbortController();
     void (async () => {
       let failures = 0;
-      let syncDuration = 0;
+      let lastSyncDuration = 0;
       while (!controller.signal.aborted) {
         try {
           const startTime = performance.now();
           await layoutManager.syncWithRemote(controller.signal);
-          syncDuration = performance.now() - startTime;
+          lastSyncDuration = performance.now() - startTime;
           failures = 0;
         } catch (error) {
           log.error("Sync failed:", error);
@@ -70,20 +70,21 @@ export default function LayoutManagerProvider({
         }
         // Exponential backoff with jitter:
         // https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
-        const backoffDuration =
-          Math.random() * clamp(SYNC_INTERVAL_BASE_MS * 2 ** failures, SYNC_INTERVAL_MAX_MS);
-        log.debug("Waiting", (backoffDuration / 1000).toFixed(2), "sec for next sync", {
-          failures,
-        });
+        const backoffDuration = Math.random() * SYNC_INTERVAL_BASE_MS * 2 ** failures;
 
-        // In high CPU load scenarios syncing can take a long time. We make sure that
+        // In high CPU load scenarios syncing can be slow to complete. We make sure that
         // we're not spending more than a certain fraction of run time doing syncs.
-        const delayDuration = clamp(
-          syncDuration * SYNC_INTERVAL_IDLE_RATIO,
+        const idleDuration = lastSyncDuration * SYNC_INTERVAL_IDLE_RATIO;
+
+        const timeToDelay = clamp(
+          Math.max(backoffDuration, idleDuration),
           SYNC_INTERVAL_BASE_MS,
           SYNC_INTERVAL_MAX_MS,
         );
-        await delay(Math.max(backoffDuration, delayDuration));
+        log.debug("Waiting", (timeToDelay / 1000).toFixed(2), "sec for next sync", {
+          failures,
+        });
+        await delay(timeToDelay);
       }
     })();
     return () => {
