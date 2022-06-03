@@ -2,6 +2,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import { clamp } from "lodash";
 import { useCallback, useEffect, useMemo } from "react";
 import { useToasts } from "react-toast-notifications";
 import { useNetworkState } from "react-use";
@@ -23,6 +24,7 @@ const log = Logger.getLogger(__filename);
 
 const SYNC_INTERVAL_BASE_MS = 30_000;
 const SYNC_INTERVAL_MAX_MS = 3 * 60_000;
+const SYNC_INTERVAL_IDLE_RATIO = 10;
 
 export default function LayoutManagerProvider({
   children,
@@ -54,9 +56,12 @@ export default function LayoutManagerProvider({
     const controller = new AbortController();
     void (async () => {
       let failures = 0;
+      let syncDuration = 0;
       while (!controller.signal.aborted) {
         try {
+          const startTime = performance.now();
           await layoutManager.syncWithRemote(controller.signal);
+          syncDuration = performance.now() - startTime;
           failures = 0;
         } catch (error) {
           log.error("Sync failed:", error);
@@ -65,10 +70,20 @@ export default function LayoutManagerProvider({
         }
         // Exponential backoff with jitter:
         // https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
-        const duration =
-          Math.random() * Math.min(SYNC_INTERVAL_MAX_MS, SYNC_INTERVAL_BASE_MS * 2 ** failures);
-        log.debug("Waiting", (duration / 1000).toFixed(2), "sec for next sync", { failures });
-        await delay(duration);
+        const backoffDuration =
+          Math.random() * clamp(SYNC_INTERVAL_BASE_MS * 2 ** failures, SYNC_INTERVAL_MAX_MS);
+        log.debug("Waiting", (backoffDuration / 1000).toFixed(2), "sec for next sync", {
+          failures,
+        });
+
+        // In high CPU load scenarios syncing can take a long time. We make sure that
+        // we're not spending more than a certain fraction of run time doing syncs.
+        const delayDuration = clamp(
+          syncDuration * SYNC_INTERVAL_IDLE_RATIO,
+          SYNC_INTERVAL_BASE_MS,
+          SYNC_INTERVAL_MAX_MS,
+        );
+        await delay(Math.max(backoffDuration, delayDuration));
       }
     })();
     return () => {
