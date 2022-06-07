@@ -2,12 +2,14 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import memoizeWeak from "memoize-weak";
 import { v4 as uuidv4 } from "uuid";
 
 import { CameraState, DEFAULT_CAMERA_STATE } from "@foxglove/regl-worldview";
 import { Topic } from "@foxglove/studio";
 import {
   SettingsTreeChildren,
+  SettingsTreeField,
   SettingsTreeNode,
   SettingsTreeRoots,
 } from "@foxglove/studio-base/components/SettingsTreeEditor/types";
@@ -141,6 +143,10 @@ export type SettingsNodeProvider = (
   topic: Topic,
 ) => SettingsTreeNode;
 
+const EMPTY_TOPIC_CONFIG = {};
+
+const EMPTY_TRANSFORM_CONFIG = {};
+
 export const SUPPORTED_DATATYPES = new Set<string>();
 mergeSetInto(SUPPORTED_DATATYPES, TRANSFORM_STAMPED_DATATYPES);
 mergeSetInto(SUPPORTED_DATATYPES, TF_DATATYPES);
@@ -193,6 +199,33 @@ function buildTransformNode(
   return node;
 }
 
+function buildTransformsRootNode(
+  configTransforms: ThreeDeeRenderConfig["transforms"],
+  coordinateFrames: readonly SelectEntry[],
+  settingsNodeProviders: Map<LayerType, SettingsNodeProvider>,
+  layerErrors: NodeError,
+): SettingsTreeNode {
+  const transformsChildren: SettingsTreeChildren = {};
+  const tfSettingsNodeProvider = settingsNodeProviders.get(LayerType.Transform);
+  if (tfSettingsNodeProvider != undefined) {
+    for (const { label: frameName, value: frameId } of coordinateFrames) {
+      const transformConfig = configTransforms[frameId] ?? EMPTY_TRANSFORM_CONFIG;
+      const newNode = buildTransformNode(transformConfig, frameName, tfSettingsNodeProvider);
+      if (newNode) {
+        newNode.error = layerErrors.errorAtPath(["transforms", frameId]);
+        transformsChildren[frameId] = newNode;
+      }
+    }
+  }
+
+  return {
+    error: layerErrors.errorAtPath(PATH_TRANSFORMS),
+    label: "Transforms",
+    children: transformsChildren,
+    defaultExpansionState: "expanded",
+  };
+}
+
 function buildTopicNode(
   topicConfig: Partial<LayerSettings>,
   topic: Topic,
@@ -238,33 +271,14 @@ function buildLayerNode(
   return node;
 }
 
-export function buildSettingsTree(options: SettingsTreeOptions): SettingsTreeRoots {
-  const {
-    config,
-    coordinateFrames,
-    layerErrors,
-    followTf,
-    topics,
-    topicsToLayerTypes,
-    settingsNodeProviders,
-  } = options;
-  const { cameraState, scene } = config;
-  const { backgroundColor } = scene;
-
-  // Build the settings tree for transforms
-  const transformsChildren: SettingsTreeChildren = {};
-  const tfSettingsNodeProvider = settingsNodeProviders.get(LayerType.Transform);
-  if (tfSettingsNodeProvider != undefined) {
-    for (const { label: frameName, value: frameId } of options.coordinateFrames) {
-      const transformConfig = config.transforms[frameId] ?? {};
-      const newNode = buildTransformNode(transformConfig, frameName, tfSettingsNodeProvider);
-      if (newNode) {
-        newNode.error = layerErrors.errorAtPath(["transforms", frameId]);
-        transformsChildren[frameId] = newNode;
-      }
-    }
-  }
-
+function buildTopicsRootNode(
+  configTopics: ThreeDeeRenderConfig["topics"],
+  topics: readonly Topic[],
+  topicsToLayerTypes: Map<string, LayerType>,
+  settingsNodeProviders: Map<LayerType, SettingsNodeProvider>,
+  layerErrors: NodeError,
+  coordinateFrames: readonly SelectEntry[],
+): SettingsTreeNode {
   // Build the settings tree for topics
   const topicsChildren: SettingsTreeChildren = {};
   const sortedTopics = sorted(topics, (a, b) => a.name.localeCompare(b.name));
@@ -277,8 +291,8 @@ export function buildSettingsTree(options: SettingsTreeOptions): SettingsTreeRoo
     if (settingsNodeProvider == undefined) {
       continue;
     }
-    const topicConfig = config.topics[topic.name] ?? {};
-    const newNode = buildTopicNode(
+    const topicConfig = configTopics[topic.name] ?? EMPTY_TOPIC_CONFIG;
+    const newNode = memoBuildTopicNode(
       topicConfig,
       topic,
       layerType,
@@ -290,6 +304,41 @@ export function buildSettingsTree(options: SettingsTreeOptions): SettingsTreeRoo
       topicsChildren[topic.name] = newNode;
     }
   }
+
+  return {
+    error: layerErrors.errorAtPath(PATH_TOPICS),
+    label: "Topics",
+    children: topicsChildren,
+    defaultExpansionState: "expanded",
+  };
+}
+
+const memoBuildTransformsNode = memoizeWeak(buildTransformsRootNode);
+
+const memoBuildTopicNode = memoizeWeak(buildTopicNode);
+const memoBuildTopicsRootNode = memoizeWeak(buildTopicsRootNode);
+
+const memoBuildTargetOffset = memoizeWeak(
+  (targetOffset: readonly [number, number, number]): SettingsTreeField => ({
+    label: "Target",
+    input: "vec3",
+    labels: ["X", "Y", "Z"],
+    value: targetOffset,
+  }),
+);
+
+export function buildSettingsTree(options: SettingsTreeOptions): SettingsTreeRoots {
+  const {
+    config,
+    coordinateFrames,
+    layerErrors,
+    followTf,
+    topics,
+    topicsToLayerTypes,
+    settingsNodeProviders,
+  } = options;
+  const { cameraState, scene } = config;
+  const { backgroundColor } = scene;
 
   // Build the settings tree for custom layers
   const layersChildren: SettingsTreeChildren = {};
@@ -334,12 +383,7 @@ export function buildSettingsTree(options: SettingsTreeOptions): SettingsTreeRoo
       fields: {
         distance: { label: "Distance", input: "number", value: cameraState.distance, step: 1 },
         perspective: { label: "Perspective", input: "boolean", value: cameraState.perspective },
-        targetOffset: {
-          label: "Target",
-          input: "vec3",
-          labels: ["X", "Y", "Z"],
-          value: cameraState.targetOffset,
-        },
+        targetOffset: memoBuildTargetOffset(cameraState.targetOffset),
         thetaOffset: {
           label: "Theta",
           input: "number",
@@ -358,18 +402,20 @@ export function buildSettingsTree(options: SettingsTreeOptions): SettingsTreeRoo
       },
       defaultExpansionState: "collapsed",
     },
-    transforms: {
-      error: layerErrors.errorAtPath(PATH_TRANSFORMS),
-      label: "Transforms",
-      children: transformsChildren,
-      defaultExpansionState: "expanded",
-    },
-    topics: {
-      error: layerErrors.errorAtPath(PATH_TOPICS),
-      label: "Topics",
-      children: topicsChildren,
-      defaultExpansionState: "expanded",
-    },
+    transforms: memoBuildTransformsNode(
+      config.transforms,
+      coordinateFrames,
+      settingsNodeProviders,
+      layerErrors,
+    ),
+    topics: memoBuildTopicsRootNode(
+      config.topics,
+      topics,
+      topicsToLayerTypes,
+      settingsNodeProviders,
+      layerErrors,
+      coordinateFrames,
+    ),
     layers: {
       error: layerErrors.errorAtPath(PATH_LAYERS),
       label: "Custom Layers",

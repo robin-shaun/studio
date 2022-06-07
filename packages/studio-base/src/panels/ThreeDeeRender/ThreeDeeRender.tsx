@@ -9,7 +9,6 @@ import React, { useCallback, useLayoutEffect, useEffect, useState, useMemo, useR
 import ReactDOM from "react-dom";
 import { useResizeDetector } from "react-resize-detector";
 import { DeepPartial } from "ts-essentials";
-import { useDebouncedCallback } from "use-debounce";
 
 import Logger from "@foxglove/log";
 import {
@@ -71,7 +70,6 @@ import {
   LayerSettingsImage,
   LayerType,
   SelectEntry,
-  SettingsTreeOptions,
   SUPPORTED_DATATYPES,
   ThreeDeeRenderConfig,
 } from "./settings";
@@ -259,29 +257,21 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
 
   const settingsNodeProviders = renderer?.settingsNodeProviders;
 
-  const throttledUpdatePanelSettingsTree = useDebouncedCallback(
-    (handler: (action: SettingsTreeAction) => void, options: SettingsTreeOptions) => {
-      // eslint-disable-next-line no-underscore-dangle
-      (
-        context as unknown as EXPERIMENTAL_PanelExtensionContextWithSettings
-      ).__updatePanelSettingsTree({
-        actionHandler: handler,
-        roots: buildSettingsTree(options),
-      });
-    },
-    250,
-    { leading: true, trailing: true, maxWait: 250 },
-  );
-
   useEffect(() => {
-    throttledUpdatePanelSettingsTree(actionHandler, {
-      config,
-      coordinateFrames,
-      layerErrors,
-      followTf,
-      topics: topics ?? [],
-      topicsToLayerTypes,
-      settingsNodeProviders: settingsNodeProviders ?? new Map(),
+    // eslint-disable-next-line no-underscore-dangle
+    (
+      context as unknown as EXPERIMENTAL_PanelExtensionContextWithSettings
+    ).__updatePanelSettingsTree({
+      actionHandler,
+      roots: buildSettingsTree({
+        config,
+        coordinateFrames,
+        layerErrors,
+        followTf,
+        topics: topics ?? [],
+        topicsToLayerTypes,
+        settingsNodeProviders: settingsNodeProviders ?? new Map(),
+      }),
     });
   }, [
     actionHandler,
@@ -291,7 +281,6 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
     followTf,
     layerErrors,
     settingsNodeProviders,
-    throttledUpdatePanelSettingsTree,
     topics,
     topicsToLayerTypes,
   ]);
@@ -313,12 +302,7 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
   }, [followTf, renderer]);
 
   // Save panel settings whenever they change
-  const throttledSave = useDebouncedCallback(
-    (newConfig: ThreeDeeRenderConfig) => saveState(newConfig),
-    1000,
-    { leading: false, trailing: true, maxWait: 1000 },
-  );
-  useEffect(() => throttledSave(config), [config, throttledSave]);
+  useEffect(() => saveState(config), [config, saveState]);
 
   // Dispose of the renderer (and associated GPU resources) on teardown
   useCleanup(() => renderer?.dispose());
