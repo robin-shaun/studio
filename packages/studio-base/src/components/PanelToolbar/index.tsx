@@ -27,9 +27,6 @@ type Props = {
   additionalIcons?: React.ReactNode;
   backgroundColor?: CSSProperties["backgroundColor"];
   children?: React.ReactNode;
-  // Keeping this prop for now in case we decide to expose it via some other mechanism
-  // like a context menu item.
-  // eslint-disable-next-line react/no-unused-prop-types
   helpContent?: React.ReactNode;
   isUnknownPanel?: boolean;
 };
@@ -57,6 +54,7 @@ export default React.memo<Props>(function PanelToolbar({
   additionalIcons,
   backgroundColor,
   children,
+  helpContent,
   isUnknownPanel = false,
 }: Props) {
   const { isFullscreen, enterFullscreen, exitFullscreen } = useContext(PanelContext) ?? {};
@@ -103,6 +101,7 @@ export default React.memo<Props>(function PanelToolbar({
         ))}
       <PanelToolbarControls
         additionalIcons={additionalIconsWithHelp}
+        helpContent={helpContent}
         isUnknownPanel={!!isUnknownPanel}
         menuOpen={menuOpen}
         setMenuOpen={setMenuOpen}

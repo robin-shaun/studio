@@ -22,6 +22,7 @@ import { PanelActionsDropdown } from "./PanelActionsDropdown";
 
 type PanelToolbarControlsProps = {
   additionalIcons?: React.ReactNode;
+  helpContent?: React.ReactNode;
   isUnknownPanel: boolean;
   menuOpen: boolean;
   // eslint-disable-next-line @foxglove/no-boolean-parameters
@@ -32,6 +33,7 @@ type PanelToolbarControlsProps = {
 // whole PanelToolbar when only children change.
 export const PanelToolbarControls = React.memo(function PanelToolbarControls({
   additionalIcons,
+  helpContent,
   isUnknownPanel,
   menuOpen,
   setMenuOpen,
@@ -42,6 +44,7 @@ export const PanelToolbarControls = React.memo(function PanelToolbarControls({
     <Stack direction="row" alignItems="center" paddingLeft={1}>
       {additionalIcons}
       <PanelActionsDropdown
+        helpContent={helpContent}
         isOpen={menuOpen}
         setIsOpen={setMenuOpen}
         isUnknownPanel={isUnknownPanel}

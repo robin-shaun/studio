@@ -13,7 +13,7 @@
 
 import { ContextualMenu, IContextualMenuItem, useTheme } from "@fluentui/react";
 import SettingsIcon from "@mui/icons-material/Settings";
-import { useCallback, useContext, useMemo, useRef } from "react";
+import { ReactNode, useCallback, useContext, useMemo, useRef } from "react";
 import { MosaicContext, MosaicNode, MosaicWindowContext } from "react-mosaic-component";
 
 import PanelContext from "@foxglove/studio-base/components/PanelContext";
@@ -25,15 +25,24 @@ import {
   useSelectedPanels,
 } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { useWorkspace } from "@foxglove/studio-base/context/WorkspaceContext";
+import { HelpInfoStore, useHelpInfo } from "@foxglove/studio-base/providers/HelpInfoProvider";
 
 type Props = {
+  helpContent?: ReactNode;
   isOpen: boolean;
   // eslint-disable-next-line @foxglove/no-boolean-parameters
   setIsOpen: (_: boolean) => void;
   isUnknownPanel: boolean;
 };
 
-export function PanelActionsDropdown({ isOpen, setIsOpen, isUnknownPanel }: Props): JSX.Element {
+const selectSetHelpInfo = (store: HelpInfoStore) => store.setHelpInfo;
+
+export function PanelActionsDropdown({
+  helpContent,
+  isOpen,
+  setIsOpen,
+  isUnknownPanel,
+}: Props): JSX.Element {
   const panelContext = useContext(PanelContext);
   const tabId = panelContext?.tabId;
   const { mosaicActions } = useContext(MosaicContext);
@@ -111,6 +120,17 @@ export function PanelActionsDropdown({ isOpen, setIsOpen, isUnknownPanel }: Prop
 
   const theme = useTheme();
 
+  const { openHelp } = useWorkspace();
+
+  const setHelpInfo = useHelpInfo(selectSetHelpInfo);
+
+  const showPanelHelp = useCallback(() => {
+    if (panelContext?.title != undefined && helpContent != undefined) {
+      setHelpInfo({ title: panelContext.title, content: helpContent });
+      openHelp();
+    }
+  }, [helpContent, openHelp, panelContext?.title, setHelpInfo]);
+
   const menuItems: IContextualMenuItem[] = useMemo(() => {
     const items: IContextualMenuItem[] = [
       {
@@ -172,6 +192,7 @@ export function PanelActionsDropdown({ isOpen, setIsOpen, isUnknownPanel }: Prop
         },
       );
     }
+
     items.push({
       key: "remove",
       text: "Remove panel",
@@ -179,8 +200,33 @@ export function PanelActionsDropdown({ isOpen, setIsOpen, isUnknownPanel }: Prop
       iconProps: { iconName: "Delete" },
       "data-test": "panel-menu-remove",
     });
+
+    if (helpContent != undefined) {
+      items.push({
+        key: "help",
+        text: "Help",
+        onClick: showPanelHelp,
+        iconProps: {
+          iconName: "QuestionCircle",
+          styles: { root: { height: 24, marginLeft: 2, marginRight: 6 } },
+        },
+        "data-test": "panel-menu-help",
+      });
+    }
+
     return items;
-  }, [close, isUnknownPanel, openSettings, panelContext, split, swap, theme]);
+  }, [
+    close,
+    helpContent,
+    isUnknownPanel,
+    openSettings,
+    panelContext?.id,
+    panelContext?.title,
+    showPanelHelp,
+    split,
+    swap,
+    theme.semanticColors.menuBackground,
+  ]);
 
   const buttonRef = useRef<HTMLDivElement>(ReactNull);
 
