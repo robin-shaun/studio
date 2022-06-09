@@ -101,7 +101,7 @@ export function Toolbar({ pixelData }: { pixelData: PixelData | undefined }): JS
   const mousePresent = usePanelMousePresence(ref);
 
   return (
-    <ToolbarRoot ref={ref} visible={mousePresent}>
+    <ToolbarRoot ref={ref} visible={mousePresent && pixelData != undefined}>
       <ExpandingToolbar
         tooltip="Inspect objects"
         icon={<CursorIcon />}
