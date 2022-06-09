@@ -2,7 +2,8 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { useCallback, useEffect, useMemo } from "react";
+import { unionBy } from "lodash";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useToasts } from "react-toast-notifications";
 import { useNetworkState } from "react-use";
 
@@ -15,7 +16,8 @@ import LayoutStorageDebuggingContext from "@foxglove/studio-base/context/LayoutS
 import { useRemoteLayoutStorage } from "@foxglove/studio-base/context/RemoteLayoutStorageContext";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
 import useCallbackWithToast from "@foxglove/studio-base/hooks/useCallbackWithToast";
-import { ISO8601Timestamp, LayoutID } from "@foxglove/studio-base/services/ILayoutStorage";
+import { LayoutManagerChangeEvent } from "@foxglove/studio-base/services/ILayoutManager";
+import { ISO8601Timestamp, Layout, LayoutID } from "@foxglove/studio-base/services/ILayoutStorage";
 import LayoutManager from "@foxglove/studio-base/services/LayoutManager/LayoutManager";
 import delay from "@foxglove/studio-base/util/delay";
 
@@ -55,6 +57,8 @@ export default function LayoutManagerProvider({
     void (async () => {
       let failures = 0;
       while (!controller.signal.aborted) {
+        // Do an initial wait since we already loaded layouts on startup.
+        await delay(SYNC_INTERVAL_BASE_MS);
         try {
           await layoutManager.syncWithRemote(controller.signal);
           failures = 0;
@@ -80,6 +84,47 @@ export default function LayoutManagerProvider({
   const syncNow = useCallbackWithToast(async () => {
     await layoutManager.syncWithRemote(new AbortController().signal);
   }, [layoutManager]);
+
+  const reloadLayouts = useCallback(async () => {
+    try {
+      const layouts = await layoutManager.getLayouts();
+      log.debug(`Loaded ${layouts.length} layouts`);
+      setCachedLayouts(layouts);
+    } catch (error) {
+      log.error(error);
+    }
+  }, [layoutManager]);
+
+  const [cachedLayouts, setCachedLayouts] = useState<readonly Layout[]>([]);
+
+  // Load and cache layouts on app startup.
+  useEffect(() => {
+    reloadLayouts().catch((error) => log.error(error));
+  }, [reloadLayouts]);
+
+  useEffect(() => {
+    const changeListener = (event: LayoutManagerChangeEvent) => {
+      const { updatedLayout } = event;
+
+      if (event.type === "delete") {
+        setCachedLayouts((oldCachedLayouts) => {
+          return oldCachedLayouts.filter((layout) => layout.id !== event.layoutId);
+        });
+      } else if (updatedLayout) {
+        setCachedLayouts((oldCachedLayouts) => {
+          return unionBy([updatedLayout], oldCachedLayouts, (layout) => layout.id);
+        });
+      } else {
+        reloadLayouts().catch((error) => log.error(error));
+      }
+    };
+
+    layoutManager.on("change", changeListener);
+
+    return () => {
+      layoutManager.off("change", changeListener);
+    };
+  }, [layoutManager, reloadLayouts]);
 
   const injectEdit = useCallback(
     async (id: LayoutID) => {
@@ -141,13 +186,20 @@ export default function LayoutManagerProvider({
     injectDelete,
   });
 
+  const value = useMemo(
+    () => ({
+      cachedLayouts,
+      layoutManager,
+      reloadLayouts,
+    }),
+    [cachedLayouts, layoutManager, reloadLayouts],
+  );
+
   return (
     <LayoutStorageDebuggingContext.Provider
       value={process.env.NODE_ENV !== "production" && enableLayoutDebugging ? debugging : undefined}
     >
-      <LayoutManagerContext.Provider value={layoutManager}>
-        {children}
-      </LayoutManagerContext.Provider>
+      <LayoutManagerContext.Provider value={value}>{children}</LayoutManagerContext.Provider>
     </LayoutStorageDebuggingContext.Provider>
   );
 }

@@ -7,10 +7,9 @@ import { Button, Switch, FormGroup, FormControlLabel, CircularProgress } from "@
 import { partition } from "lodash";
 import moment from "moment";
 import path from "path";
-import { useCallback, useContext, useEffect, useLayoutEffect, useState } from "react";
+import { useCallback, useContext, useLayoutEffect, useMemo, useState } from "react";
 import { useToasts } from "react-toast-notifications";
 import { useMountedState } from "react-use";
-import useAsyncFn from "react-use/lib/useAsyncFn";
 
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import SignInPrompt from "@foxglove/studio-base/components/LayoutBrowser/SignInPrompt";
@@ -26,7 +25,11 @@ import {
   useCurrentLayoutSelector,
 } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { PanelsState } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
-import { useLayoutManager } from "@foxglove/studio-base/context/LayoutManagerContext";
+import {
+  useCachedLayouts,
+  useLayoutManager,
+  useReloadLayouts,
+} from "@foxglove/studio-base/context/LayoutManagerContext";
 import LayoutStorageDebuggingContext from "@foxglove/studio-base/context/LayoutStorageDebuggingContext";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
 import useCallbackWithToast from "@foxglove/studio-base/hooks/useCallbackWithToast";
@@ -76,31 +79,20 @@ export default function LayoutBrowser({
     };
   }, [layoutManager]);
 
-  const [layouts, reloadLayouts] = useAsyncFn(
-    async () => {
-      const [shared, personal] = partition(
-        await layoutManager.getLayouts(),
-        layoutManager.supportsSharing ? layoutIsShared : () => false,
-      );
-      return {
-        personal: personal.sort((a, b) => a.name.localeCompare(b.name)),
-        shared: shared.sort((a, b) => a.name.localeCompare(b.name)),
-      };
-    },
-    [layoutManager],
-    { loading: true },
-  );
+  const cachedLayouts = useCachedLayouts();
 
-  useEffect(() => {
-    const listener = () => void reloadLayouts();
-    layoutManager.on("change", listener);
-    return () => layoutManager.off("change", listener);
-  }, [layoutManager, reloadLayouts]);
+  const reloadLayouts = useReloadLayouts();
 
-  // Start loading on first mount
-  useEffect(() => {
-    void reloadLayouts();
-  }, [reloadLayouts]);
+  const layouts = useMemo(() => {
+    const [shared, personal] = partition(
+      cachedLayouts,
+      layoutManager.supportsSharing ? layoutIsShared : () => false,
+    );
+    return {
+      personal: personal.sort((a, b) => a.name.localeCompare(b.name)),
+      shared: shared.sort((a, b) => a.name.localeCompare(b.name)),
+    };
+  }, [cachedLayouts, layoutManager.supportsSharing]);
 
   /**
    * Don't allow the user to switch away from a personal layout if they have unsaved changes. This
@@ -395,7 +387,7 @@ export default function LayoutBrowser({
       helpContent={helpContent}
       disablePadding
       trailingItems={[
-        (layouts.loading || isBusy) && (
+        /*layouts.loading || */ isBusy && (
           <Stack key="loading" alignItems="center" justifyContent="center" padding={1}>
             <CircularProgress size={18} variant="indeterminate" />
           </Stack>
@@ -457,7 +449,7 @@ export default function LayoutBrowser({
           <LayoutSection
             title={layoutManager.supportsSharing ? "Personal" : undefined}
             emptyText="Add a new layout to get started with Foxglove Studio!"
-            items={layouts.value?.personal}
+            items={layouts.personal}
             selectedId={currentLayoutId}
             onSelect={onSelectLayout}
             onRename={onRenameLayout}
@@ -475,7 +467,7 @@ export default function LayoutBrowser({
             <LayoutSection
               title="Team"
               emptyText="Your organization doesn’t have any shared layouts yet. Share a personal layout to collaborate with other team members."
-              items={layouts.value?.shared}
+              items={layouts.shared}
               selectedId={currentLayoutId}
               onSelect={onSelectLayout}
               onRename={onRenameLayout}

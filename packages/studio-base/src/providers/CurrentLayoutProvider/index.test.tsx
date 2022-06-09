@@ -81,10 +81,15 @@ function renderTest({
     }),
     {
       wrapper: function Wrapper({ children }) {
+        const value = {
+          cachedLayouts: [],
+          layoutManager: mockLayoutManager,
+          reloadLayouts: async () => undefined,
+        };
         useEffect(() => childMounted.resolve(), []);
         return (
           <ToastProvider>
-            <LayoutManagerContext.Provider value={mockLayoutManager}>
+            <LayoutManagerContext.Provider value={value}>
               <UserProfileStorageContext.Provider value={mockUserProfile}>
                 <CurrentLayoutProvider>{children}</CurrentLayoutProvider>
               </UserProfileStorageContext.Provider>
