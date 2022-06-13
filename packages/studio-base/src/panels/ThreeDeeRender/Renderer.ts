@@ -100,6 +100,7 @@ export type RendererEvents = {
 };
 
 const DEBUG_PICKING: true | false = false;
+const DEBUG_CAMERA: true | false = false;
 
 // NOTE: These do not use .convertSRGBToLinear() since background color is not
 // affected by gamma correction
@@ -118,6 +119,9 @@ const UNIT_X = new THREE.Vector3(1, 0, 0);
 const PI_2 = Math.PI / 2;
 
 const TRANSFORMS_PATH = ["transforms"];
+
+//frustum size of orthographic camera - 100m
+const FRUSTUM_SIZE = 100;
 
 export const SUPPORTED_DATATYPES = new Set<string>();
 mergeSetInto(SUPPORTED_DATATYPES, TRANSFORM_STAMPED_DATATYPES);
@@ -153,7 +157,9 @@ export class Renderer extends EventEmitter<RendererEvents> {
   dirLight: THREE.DirectionalLight;
   hemiLight: THREE.HemisphereLight;
   input: Input;
-  camera: THREE.PerspectiveCamera;
+  camera: THREE.PerspectiveCamera | THREE.OrthographicCamera;
+  perspectiveCamera: THREE.PerspectiveCamera;
+  orthographicCamera: THREE.OrthographicCamera;
   picker: Picker;
   selectionBackdrop: ScreenOverlay;
   selectedObject: THREE.Object3D | undefined;
@@ -258,11 +264,33 @@ export class Renderer extends EventEmitter<RendererEvents> {
 
     const fov = 79;
     const near = 0.01; // 1cm
-    const far = 10_000; // 10km
-    this.camera = new THREE.PerspectiveCamera(fov, width / height, near, far);
-    this.camera.up.set(0, 0, 1);
-    this.camera.position.set(1, -3, 1);
-    this.camera.lookAt(0, 0, 0);
+    const far = 10000; // 10km
+    const aspect = width / height;
+
+    this.perspectiveCamera = new THREE.PerspectiveCamera(fov, aspect, near, far);
+    this.perspectiveCamera.up.set(0, 0, 1);
+    this.perspectiveCamera.position.set(1, -3, 1);
+    this.perspectiveCamera.lookAt(0, 0, 0);
+    if (DEBUG_CAMERA) {
+      const helper = new THREE.CameraHelper(this.perspectiveCamera);
+      this.scene.add(helper);
+    }
+
+    this.orthographicCamera = new THREE.OrthographicCamera(
+      (FRUSTUM_SIZE * aspect) / -2,
+      (FRUSTUM_SIZE * aspect) / 2,
+      FRUSTUM_SIZE / 2,
+      FRUSTUM_SIZE / -2,
+      near,
+      far,
+    );
+    this.orthographicCamera.position.z = 1000;
+    if (DEBUG_CAMERA) {
+      const helper = new THREE.CameraHelper(this.orthographicCamera);
+      this.scene.add(helper);
+    }
+
+    this.camera = this.perspectiveCamera;
 
     this.picker = new Picker(this.gl, this.scene, this.camera, { debug: DEBUG_PICKING });
 
@@ -476,24 +504,40 @@ export class Renderer extends EventEmitter<RendererEvents> {
 
   /** Translate a Worldview CameraState to the three.js coordinate system */
   setCameraState(cameraState: CameraState): void {
-    this.camera.position
-      .setFromSpherical(
-        tempSpherical.set(cameraState.distance, cameraState.phi, -cameraState.thetaOffset),
-      )
-      .applyAxisAngle(UNIT_X, PI_2);
-    this.camera.position.add(
-      tempVec.set(
-        cameraState.targetOffset[0],
-        cameraState.targetOffset[1],
-        cameraState.targetOffset[2], // always 0 in Worldview CameraListener
-      ),
-    );
-    this.camera.quaternion.setFromEuler(
-      tempEuler.set(cameraState.phi, 0, -cameraState.thetaOffset, "ZYX"),
-    );
-    this.camera.fov = cameraState.fovy * (180 / Math.PI);
-    this.camera.near = cameraState.near;
-    this.camera.far = cameraState.far;
+    if (cameraState.perspective) {
+      //3D view mode
+      this.perspectiveCamera.position
+        .setFromSpherical(
+          tempSpherical.set(cameraState.distance, cameraState.phi, -cameraState.thetaOffset),
+        )
+        .applyAxisAngle(UNIT_X, PI_2);
+      this.perspectiveCamera.position.add(
+        tempVec.set(
+          cameraState.targetOffset[0],
+          cameraState.targetOffset[1],
+          cameraState.targetOffset[2], // always 0 in Worldview CameraListener
+        ),
+      );
+      this.perspectiveCamera.quaternion.setFromEuler(
+        tempEuler.set(cameraState.phi, 0, -cameraState.thetaOffset, "ZYX"),
+      );
+      this.perspectiveCamera.fov = THREE.MathUtils.radToDeg(cameraState.fovy);
+      this.perspectiveCamera.near = cameraState.near;
+      this.perspectiveCamera.far = cameraState.far;
+
+      this.camera = this.perspectiveCamera;
+    } else {
+      //2D view mode
+      this.orthographicCamera.position
+        .setFromSpherical(tempSpherical.set(cameraState.distance, 0, 0))
+        .applyAxisAngle(UNIT_X, PI_2);
+      this.orthographicCamera.position.add(
+        tempVec.set(cameraState.targetOffset[0], cameraState.targetOffset[1], 0),
+      );
+
+      this.camera = this.orthographicCamera;
+    }
+
     this.camera.updateProjectionMatrix();
   }
 
@@ -502,7 +546,10 @@ export class Renderer extends EventEmitter<RendererEvents> {
     this.gl.setSize(size.width, size.height);
 
     const renderSize = this.gl.getDrawingBufferSize(tempVec2);
-    this.camera.aspect = renderSize.width / renderSize.height;
+    const aspect = renderSize.width / renderSize.height;
+    this.perspectiveCamera.aspect = aspect;
+    this.orthographicCamera.left = (FRUSTUM_SIZE * aspect) / -2;
+    this.orthographicCamera.right = (FRUSTUM_SIZE * aspect) / 2;
     this.camera.updateProjectionMatrix();
 
     log.debug(`Resized renderer to ${renderSize.width}x${renderSize.height}`);
