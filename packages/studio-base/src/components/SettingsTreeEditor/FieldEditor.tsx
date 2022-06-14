@@ -23,7 +23,7 @@ import { v4 as uuid } from "uuid";
 import MessagePathInput from "@foxglove/studio-base/components/MessagePathSyntax/MessagePathInput";
 import Stack from "@foxglove/studio-base/components/Stack";
 
-import { ColorPickerInput, ColorGradientInput, NumberInput, Vec3Input } from "./inputs";
+import { ColorPickerInput, ColorGradientInput, NumberInput, Vec3Input, Vec2Input } from "./inputs";
 import { SettingsTreeAction, SettingsTreeField } from "./types";
 
 // Used to both undefined and empty string in select inputs.
@@ -330,12 +330,25 @@ function FieldInput({
           }
         />
       );
+    case "vec2":
+      return (
+        <Vec2Input
+          step={field.step}
+          value={field.value}
+          precision={field.precision}
+          disabled={field.disabled}
+          readOnly={field.readOnly}
+          onChange={(value) =>
+            actionHandler({ action: "update", payload: { path, input: "vec2", value } })
+          }
+        />
+      );
   }
 }
 
 function FieldLabel({ field }: { field: DeepReadonly<SettingsTreeField> }): JSX.Element {
-  if (field.input === "vec3") {
-    const labels = field.labels ?? ["X", "Y", "Z"];
+  if (field.input === "vec3" || field.input === "vec2") {
+    const labels = field.labels ?? [];
     return (
       <>
         <MultiLabelWrapper>

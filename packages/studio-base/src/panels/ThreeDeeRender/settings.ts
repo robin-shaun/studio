@@ -318,31 +318,71 @@ export function buildSettingsTree(options: SettingsTreeOptions): SettingsTreeRoo
     cameraState: {
       error: layerErrors.errorAtPath(PATH_CAMERA_STATE),
       label: "Camera",
-      fields: {
-        distance: { label: "Distance", input: "number", value: cameraState.distance, step: 1 },
-        perspective: { label: "Perspective", input: "boolean", value: cameraState.perspective },
-        targetOffset: {
-          label: "Target",
-          input: "vec3",
-          labels: ["X", "Y", "Z"],
-          value: cameraState.targetOffset,
-        },
-        thetaOffset: {
-          label: "Theta",
-          input: "number",
-          value: cameraState.thetaOffset,
-          step: ONE_DEGREE,
-        },
-        phi: { label: "Phi", input: "number", value: cameraState.phi, step: ONE_DEGREE },
-        fovy: { label: "Y-Axis FOV", input: "number", value: cameraState.fovy, step: ONE_DEGREE },
-        near: {
-          label: "Near",
-          input: "number",
-          value: cameraState.near,
-          step: DEFAULT_CAMERA_STATE.near,
-        },
-        far: { label: "Far", input: "number", value: cameraState.far, step: 1 },
-      },
+      fields: cameraState.perspective
+        ? {
+            perspective: { label: "Perspective", input: "boolean", value: cameraState.perspective },
+            distance: { label: "Distance", input: "number", value: cameraState.distance, step: 1 },
+            targetOffset: {
+              label: "Target",
+              input: "vec3",
+              labels: ["X", "Y", "Z"],
+              value: cameraState.targetOffset,
+            },
+            thetaOffset: {
+              label: "Theta",
+              input: "number",
+              value: cameraState.thetaOffset,
+              step: ONE_DEGREE,
+            },
+            phi: { label: "Phi", input: "number", value: cameraState.phi, step: ONE_DEGREE },
+            fovy: {
+              label: "Y-Axis FOV",
+              input: "number",
+              value: cameraState.fovy,
+              step: ONE_DEGREE,
+            },
+            near: {
+              label: "Near",
+              input: "number",
+              value: cameraState.near,
+              step: DEFAULT_CAMERA_STATE.near,
+            },
+            far: { label: "Far", input: "number", value: cameraState.far, step: 1 },
+          }
+        : {
+            perspective: { label: "Perspective", input: "boolean", value: cameraState.perspective },
+            orthoDistance: {
+              label: "Distance",
+              input: "number",
+              value: cameraState.orthoDistance,
+              step: 1,
+            },
+            orthoTargetOffset: {
+              label: "Target",
+              input: "vec2",
+              labels: ["X", "Y"],
+              value: cameraState.orthoTargetOffset,
+            },
+            orthoThetaOffset: {
+              label: "Theta",
+              input: "number",
+              value: cameraState.orthoThetaOffset,
+              step: ONE_DEGREE,
+            },
+            orthoFrustum: {
+              label: "Frustum size",
+              input: "number",
+              value: cameraState.orthoFrustum,
+              step: 1,
+            },
+            orthoNear: {
+              label: "Near",
+              input: "number",
+              value: cameraState.orthoNear,
+              step: DEFAULT_CAMERA_STATE.near,
+            },
+            orthoFar: { label: "Far", input: "number", value: cameraState.orthoFar, step: 1 },
+          },
       defaultExpansionState: "collapsed",
     },
     transforms: {

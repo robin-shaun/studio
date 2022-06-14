@@ -165,6 +165,12 @@ export function Marker_PointCloud2_Alignment(): JSX.Element {
             far: 5000,
             target: [0, 0, 0],
             targetOrientation: [0, 0, 0, 1],
+            orthoDistance: 1000,
+            orthoTargetOffset: [0, 0],
+            orthoThetaOffset: 0,
+            orthoFrustum: 100,
+            orthoNear: 0.01,
+            orthoFar: 5000,
           },
         }}
       />

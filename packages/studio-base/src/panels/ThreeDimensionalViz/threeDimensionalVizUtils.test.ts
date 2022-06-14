@@ -34,6 +34,12 @@ describe("threeDimensionalVizUtils", () => {
         fovy: 1,
         near: 0,
         far: 1,
+        orthoDistance: 1000,
+        orthoTargetOffset: [0, 0],
+        orthoThetaOffset: 0,
+        orthoFrustum: 100,
+        orthoNear: 0.01,
+        orthoFar: 5000,
       };
 
       const newCameraState = getNewCameraStateOnFollowChange({
@@ -63,6 +69,12 @@ describe("threeDimensionalVizUtils", () => {
         fovy: 1,
         near: 0,
         far: 1,
+        orthoDistance: 1000,
+        orthoTargetOffset: [0, 0],
+        orthoThetaOffset: 0,
+        orthoFrustum: 100,
+        orthoNear: 0.01,
+        orthoFar: 5000,
       };
 
       const newCameraState = getNewCameraStateOnFollowChange({
@@ -92,6 +104,12 @@ describe("threeDimensionalVizUtils", () => {
         fovy: 1,
         near: 0,
         far: 1,
+        orthoDistance: 1000,
+        orthoTargetOffset: [0, 0],
+        orthoThetaOffset: 0,
+        orthoFrustum: 100,
+        orthoNear: 0.01,
+        orthoFar: 5000,
       };
 
       const newCameraState = getNewCameraStateOnFollowChange({

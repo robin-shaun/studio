@@ -527,12 +527,14 @@ export class Renderer extends EventEmitter<RendererEvents> {
 
       this.camera = this.perspectiveCamera;
     } else {
+      console.log(cameraState);
       //2D view mode
-      this.orthographicCamera.position
-        .setFromSpherical(tempSpherical.set(cameraState.distance, 0, 0))
-        .applyAxisAngle(UNIT_X, PI_2);
       this.orthographicCamera.position.add(
-        tempVec.set(cameraState.targetOffset[0], cameraState.targetOffset[1], 0),
+        tempVec.set(
+          cameraState.orthoTargetOffset[0],
+          cameraState.orthoTargetOffset[1],
+          cameraState.orthoDistance,
+        ),
       );
 
       this.camera = this.orthographicCamera;

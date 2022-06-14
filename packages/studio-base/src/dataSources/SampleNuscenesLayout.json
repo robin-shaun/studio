@@ -45,19 +45,36 @@
         "t:/pose",
         "t:/tf"
       ],
-      "expandedKeys": ["name:Topics"],
+      "expandedKeys": [
+        "name:Topics"
+      ],
       "followMode": "follow",
       "cameraState": {
         "distance": 30,
         "perspective": true,
         "phi": 1.0099838922608053,
-        "targetOffset": [3.552551884097018, 0.17283719439514628, 0],
+        "targetOffset": [
+          3.552551884097018,
+          0.17283719439514628,
+          0
+        ],
         "thetaOffset": 0.8495002225312027,
         "fovy": 0.7853981633974483,
         "near": 0.01,
-        "far": 5000
+        "far": 5000,
+        "orthoDistance": 1000,
+        "orthoTargetOffset": [
+          0,
+          0
+        ],
+        "orthoThetaOffset": 0,
+        "orthoFrustum": 100,
+        "orthoNear": 0.01,
+        "orthoFar": 5000
       },
-      "modifiedNamespaceTopics": ["/tf"],
+      "modifiedNamespaceTopics": [
+        "/tf"
+      ],
       "pinTopics": false,
       "settingsByKey": {
         "t:/pose": {
@@ -96,20 +113,38 @@
         "t:/RADAR_BACK_LEFT",
         "t:/RADAR_BACK_RIGHT"
       ],
-      "expandedKeys": ["name:Topics", "t:/tf"],
+      "expandedKeys": [
+        "name:Topics",
+        "t:/tf"
+      ],
       "followTf": "base_link",
       "followOrientation": false,
       "cameraState": {
         "distance": 111.93497850814407,
         "perspective": false,
         "phi": 0.03891070297656745,
-        "targetOffset": [1.9192625259993057, -0.5920387880285412, 0],
+        "targetOffset": [
+          1.9192625259993057,
+          -0.5920387880285412,
+          0
+        ],
         "thetaOffset": -4.486440525404362,
         "fovy": 0.7853981633974483,
         "near": 0.01,
-        "far": 5000
+        "far": 5000,
+        "orthoDistance": 1000,
+        "orthoTargetOffset": [
+          0,
+          0
+        ],
+        "orthoThetaOffset": 0,
+        "orthoFrustum": 100,
+        "orthoNear": 0.01,
+        "orthoFar": 5000
       },
-      "modifiedNamespaceTopics": ["/tf"],
+      "modifiedNamespaceTopics": [
+        "/tf"
+      ],
       "pinTopics": false,
       "settingsByKey": {},
       "autoSyncCameraState": false,
