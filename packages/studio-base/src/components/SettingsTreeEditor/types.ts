@@ -29,6 +29,14 @@ export type SettingsTreeFieldValue =
       value?: string | ReadonlyArray<string>;
       options: ReadonlyArray<{ label: string; value: undefined | string }>;
     }
+  | {
+      input: "slider";
+      value?: number;
+      step?: number;
+      max?: number;
+      min?: number;
+      precision?: number;
+    }
   | { input: "string"; value?: string }
   | { input: "toggle"; value?: string; options: ReadonlyArray<string> }
   | {

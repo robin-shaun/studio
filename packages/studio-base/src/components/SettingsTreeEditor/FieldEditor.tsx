@@ -21,6 +21,7 @@ import { DeepReadonly } from "ts-essentials";
 import { v4 as uuid } from "uuid";
 
 import MessagePathInput from "@foxglove/studio-base/components/MessagePathSyntax/MessagePathInput";
+import Slider from "@foxglove/studio-base/components/SettingsTreeEditor/inputs/Slider";
 import Stack from "@foxglove/studio-base/components/Stack";
 
 import { ColorPickerInput, ColorGradientInput, NumberInput, Vec3Input } from "./inputs";
@@ -305,6 +306,12 @@ function FieldInput({
             </MenuItem>
           ))}
         </Select>
+      );
+    case "slider":
+      return (
+        <Stack direction="row" alignItems="center">
+          <Slider color="secondary" />
+        </Stack>
       );
     case "gradient":
       return (

@@ -59,6 +59,10 @@ const BasicSettings: SettingsTreeRoots = {
         label: "Field With Error",
         error: "This field has an error message that should be displayed to the user",
       },
+      slider: {
+        input: "slider",
+        label: "Slider",
+      },
     },
     children: {},
   },
