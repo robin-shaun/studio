@@ -310,7 +310,19 @@ function FieldInput({
     case "slider":
       return (
         <Stack direction="row" alignItems="center">
-          <Slider color="secondary" />
+          <Slider
+            color="secondary"
+            min={field.min}
+            max={field.max}
+            step={field.step}
+            value={field.value ?? 0}
+            onChange={(_event, value) =>
+              actionHandler({
+                action: "update",
+                payload: { path, input: "slider", value: [value].flat()[0] },
+              })
+            }
+          />
         </Stack>
       );
     case "gradient":

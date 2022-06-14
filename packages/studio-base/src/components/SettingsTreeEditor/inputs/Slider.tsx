@@ -3,13 +3,14 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import SliderUnstyled, { sliderUnstyledClasses } from "@mui/base/SliderUnstyled";
-import { alpha, styled as muiStyled } from "@mui/material";
+import { alpha, SliderProps, styled as muiStyled } from "@mui/material";
+import { useCallback } from "react";
 
 const thumbSize = 18;
 const height = 10;
 const borderRadius = height / 2;
 
-export default muiStyled(SliderUnstyled)(({ theme }) => ({
+const StyledSlider = muiStyled(SliderUnstyled)(({ theme }) => ({
   color: theme.palette.primary.main,
   height,
   width: "100%",
@@ -65,3 +66,16 @@ export default muiStyled(SliderUnstyled)(({ theme }) => ({
     },
   },
 }));
+
+export default function Slider(props: SliderProps & { readOnly?: boolean }): JSX.Element {
+  const onChangeCallback = useCallback(
+    (event: Event, value: number | number[], activeThumb: number) => {
+      if (props.readOnly !== true) {
+        props.onChange?.(event, value, activeThumb);
+      }
+    },
+    [props],
+  );
+
+  return <StyledSlider {...props} onChange={onChangeCallback} />;
+}
