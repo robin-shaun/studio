@@ -161,6 +161,7 @@ export function MarkerLifetimes(): JSX.Element {
           cameraState: {
             perspective: true,
             distance: 3,
+            frustum: 20,
             phi: 1,
             target: [0, 0, 0],
             targetOffset: [0, 0, 0],
@@ -169,12 +170,6 @@ export function MarkerLifetimes(): JSX.Element {
             fovy: 0.75,
             near: 0.01,
             far: 5000,
-            orthoDistance: 1000,
-            orthoTargetOffset: [0, 0],
-            orthoThetaOffset: 0,
-            orthoFrustum: 100,
-            orthoNear: 0.01,
-            orthoFar: 5000,
           },
         }}
       />

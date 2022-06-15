@@ -164,6 +164,7 @@ export function ImageRender(): JSX.Element {
           scene: { enableStats: false },
           cameraState: {
             distance: 1.5,
+            frustum: 20,
             perspective: true,
             phi: 0.975,
             targetOffset: [0, 0.4, 0],
@@ -173,12 +174,6 @@ export function ImageRender(): JSX.Element {
             far: 5000,
             target: [0, 0, 0],
             targetOrientation: [0, 0, 0, 1],
-            orthoDistance: 1000,
-            orthoTargetOffset: [0, 0],
-            orthoThetaOffset: 0,
-            orthoFrustum: 100,
-            orthoNear: 0.01,
-            orthoFar: 5000,
           },
           topics: {
             "/cam1/info": {

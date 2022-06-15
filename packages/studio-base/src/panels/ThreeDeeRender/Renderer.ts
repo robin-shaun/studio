@@ -530,11 +530,7 @@ export class Renderer extends EventEmitter<RendererEvents> {
       console.log(cameraState);
       //2D view mode
       this.orthographicCamera.position.add(
-        tempVec.set(
-          cameraState.orthoTargetOffset[0],
-          cameraState.orthoTargetOffset[1],
-          cameraState.orthoDistance,
-        ),
+        tempVec.set(cameraState.targetOffset[0], cameraState.targetOffset[1], cameraState.distance),
       );
 
       this.camera = this.orthographicCamera;

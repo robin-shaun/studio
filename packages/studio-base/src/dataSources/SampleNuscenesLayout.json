@@ -61,16 +61,7 @@
         "thetaOffset": 0.8495002225312027,
         "fovy": 0.7853981633974483,
         "near": 0.01,
-        "far": 5000,
-        "orthoDistance": 1000,
-        "orthoTargetOffset": [
-          0,
-          0
-        ],
-        "orthoThetaOffset": 0,
-        "orthoFrustum": 100,
-        "orthoNear": 0.01,
-        "orthoFar": 5000
+        "far": 5000
       },
       "modifiedNamespaceTopics": [
         "/tf"
@@ -131,16 +122,7 @@
         "thetaOffset": -4.486440525404362,
         "fovy": 0.7853981633974483,
         "near": 0.01,
-        "far": 5000,
-        "orthoDistance": 1000,
-        "orthoTargetOffset": [
-          0,
-          0
-        ],
-        "orthoThetaOffset": 0,
-        "orthoFrustum": 100,
-        "orthoNear": 0.01,
-        "orthoFar": 5000
+        "far": 5000
       },
       "modifiedNamespaceTopics": [
         "/tf"

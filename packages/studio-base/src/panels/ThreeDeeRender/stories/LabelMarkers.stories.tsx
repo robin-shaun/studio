@@ -107,6 +107,7 @@ export function LabelMarkers(): JSX.Element {
           scene: { enableStats: false },
           cameraState: {
             distance: 5.5,
+            frustum: 20,
             perspective: true,
             phi: 0.5,
             targetOffset: [-0.5, 0.75, 0],
@@ -116,12 +117,6 @@ export function LabelMarkers(): JSX.Element {
             far: 5000,
             target: [0, 0, 0],
             targetOrientation: [0, 0, 0, 1],
-            orthoDistance: 1000,
-            orthoTargetOffset: [0, 0],
-            orthoThetaOffset: 0,
-            orthoFrustum: 100,
-            orthoNear: 0.01,
-            orthoFar: 5000,
           },
         }}
       />

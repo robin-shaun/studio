@@ -133,6 +133,7 @@ declare module "@foxglove/regl-worldview" {
   type CameraState = {
     perspective: boolean;
     distance: number;
+    frustum: number;
     phi: number;
     target: Vec3;
     targetOffset: Vec3;
@@ -141,12 +142,6 @@ declare module "@foxglove/regl-worldview" {
     fovy: number;
     near: number;
     far: number;
-    orthoDistance: number;
-    orthoTargetOffset: Vec2;
-    orthoThetaOffset: number;
-    orthoFrustum: number;
-    orthoNear: number;
-    orthoFar: number;
   };
   type CameraStateSelectors = any;
   type Scale = any;

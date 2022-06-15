@@ -85,6 +85,7 @@ export function GeometryMsgs_Polygon(): JSX.Element {
           scene: { enableStats: false },
           cameraState: {
             distance: 8.25,
+            frustum: 20,
             perspective: true,
             phi: 1,
             targetOffset: [-0.7, 2.1, 0],
@@ -94,12 +95,6 @@ export function GeometryMsgs_Polygon(): JSX.Element {
             far: 5000,
             target: [0, 0, 0],
             targetOrientation: [0, 0, 0, 1],
-            orthoDistance: 1000,
-            orthoTargetOffset: [0, 0],
-            orthoThetaOffset: 0,
-            orthoFrustum: 100,
-            orthoNear: 0.01,
-            orthoFar: 5000,
           },
         }}
       />
