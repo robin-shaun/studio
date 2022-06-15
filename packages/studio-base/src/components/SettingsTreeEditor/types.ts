@@ -71,7 +71,7 @@ export type SettingsTreeField = SettingsTreeFieldValue & {
   /**
    * True if the field is readonly.
    */
-  readOnly?: boolean;
+  readonly?: boolean;
 
   /**
    * Optional message indicating any error state for the field.
@@ -79,30 +79,34 @@ export type SettingsTreeField = SettingsTreeFieldValue & {
   error?: string;
 };
 
-export type SettingsTreeFields = Record<string, SettingsTreeField>;
+export type SettingsTreeFields = Record<string, undefined | SettingsTreeField>;
 
-export type SettingsTreeChildren = Record<string, SettingsTreeNode>;
+export type SettingsTreeChildren = Record<string, undefined | SettingsTreeNode>;
 
 /**
  * An action that can be offered to the user to perform at the
  * level of a settings node.
  */
-export type SettingsTreeNodeAction = {
-  /**
-   * A unique idenfier for the action.
-   */
-  id: string;
+export type SettingsTreeNodeAction =
+  | {
+      type: "action";
 
-  /**
-   * A descriptive label for the action.
-   */
-  label: string;
+      /**
+       * A unique idenfier for the action.
+       */
+      id: string;
 
-  /**
-   * Optional icon to display with the action.
-   */
-  icon?: keyof typeof CommonIcons;
-};
+      /**
+       * A descriptive label for the action.
+       */
+      label: string;
+
+      /**
+       * Optional icon to display with the action.
+       */
+      icon?: keyof typeof CommonIcons;
+    }
+  | { type: "divider" };
 
 export type SettingsTreeNode = {
   /**
@@ -141,6 +145,11 @@ export type SettingsTreeNode = {
   label?: string;
 
   /**
+   * True if the node label can be edited by the user.
+   */
+  renamable?: boolean;
+
+  /**
    * An optional visibility status. If this is not undefined, the node
    * editor will display a visiblity toggle button and send update actions
    * to the action handler.
@@ -171,7 +180,7 @@ export type SettingsTreeAction =
       payload: { id: string; path: readonly string[] };
     };
 
-export type SettingsTreeRoots = Record<string, SettingsTreeNode>;
+export type SettingsTreeRoots = Record<string, undefined | SettingsTreeNode>;
 
 /**
  * A settings tree is a tree of panel settings that can be managed by

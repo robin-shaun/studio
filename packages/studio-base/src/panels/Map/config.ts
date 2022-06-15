@@ -4,6 +4,7 @@
 
 import { transform } from "lodash";
 
+import { filterMap } from "@foxglove/den/collection";
 import {
   SettingsTreeFields,
   SettingsTreeRoots,
@@ -15,6 +16,7 @@ export type Config = {
   disabledTopics: string[];
   layer: string;
   zoomLevel?: number;
+  followTopic: string;
 };
 
 export function validateCustomUrl(url: string): Error | undefined {
@@ -42,6 +44,10 @@ export function buildSettingsTree(config: Config, eligibleTopics: string[]): Set
     {} as SettingsTreeFields,
   );
 
+  const eligibleFollowTopicOptions = filterMap(eligibleTopics, (topic) =>
+    config.disabledTopics.includes(topic) ? undefined : { label: topic, value: topic },
+  );
+  const followTopicOptions = [{ label: "Off", value: "" }, ...eligibleFollowTopicOptions];
   const generalSettings: SettingsTreeFields = {
     layer: {
       label: "Tile Layer",
@@ -52,6 +58,12 @@ export function buildSettingsTree(config: Config, eligibleTopics: string[]): Set
         { label: "Satellite", value: "satellite" },
         { label: "Custom", value: "custom" },
       ],
+    },
+    followTopic: {
+      label: "Follow topic",
+      input: "select",
+      value: config.followTopic,
+      options: followTopicOptions,
     },
   };
 

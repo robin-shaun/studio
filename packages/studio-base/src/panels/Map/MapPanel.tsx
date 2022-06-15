@@ -74,10 +74,12 @@ function MapPanel(props: MapPanelProps): JSX.Element {
 
   const [config, setConfig] = useState<Config>(() => {
     const initialConfig = props.context.initialState as Partial<Config>;
-    initialConfig.disabledTopics = initialConfig.disabledTopics ?? [];
-    initialConfig.layer = initialConfig.layer ?? "map";
-    initialConfig.customTileUrl = initialConfig.customTileUrl ?? "";
-    return initialConfig as Config;
+    return {
+      disabledTopics: initialConfig.disabledTopics ?? [],
+      layer: initialConfig.layer ?? "map",
+      customTileUrl: initialConfig.customTileUrl ?? "",
+      followTopic: initialConfig.followTopic ?? "",
+    };
   });
 
   const [tileLayer] = useState(
@@ -183,6 +185,12 @@ function MapPanel(props: MapPanelProps): JSX.Element {
     if (path[1] === "customTileUrl" && input === "string") {
       setConfig((oldConfig) => {
         return { ...oldConfig, customTileUrl: String(value) };
+      });
+    }
+
+    if (path[1] === "followTopic" && input === "select") {
+      setConfig((oldConfig) => {
+        return { ...oldConfig, followTopic: String(value) };
       });
     }
   }, []);
@@ -367,13 +375,21 @@ function MapPanel(props: MapPanelProps): JSX.Element {
   // calculate center point from blocks if we don't have a center point
   useEffect(() => {
     setCenter((old) => {
-      // set center only once
-      if (old) {
-        return old;
+      if (!config.followTopic) {
+        // When not following a topic center the map from the first message at startup
+        if (old) {
+          return old;
+        }
       }
 
       for (const messages of [currentNavMessages, allNavMessages]) {
         for (const message of messages) {
+          // When re-centering to follow topic, only use the messages of the matching topic
+          if (config.followTopic && old) {
+            if (message.topic !== config.followTopic) {
+              continue;
+            }
+          }
           return {
             lat: message.message.latitude,
             lon: message.message.longitude,
@@ -383,7 +399,7 @@ function MapPanel(props: MapPanelProps): JSX.Element {
 
       return;
     });
-  }, [allNavMessages, currentNavMessages]);
+  }, [allNavMessages, currentNavMessages, config]);
 
   useEffect(() => {
     if (!currentMap) {
@@ -555,13 +571,18 @@ function MapPanel(props: MapPanelProps): JSX.Element {
     };
   }, [currentMap, moveHandler]);
 
-  // Update the map view when centerpoint changes
+  // Update the map view to focus on the centerpoint when it changes
+  // Zoom is reset only once
+  const didResetZoomRef = useRef(false);
   useEffect(() => {
     if (!center) {
       return;
     }
 
-    currentMap?.setView([center.lat, center.lon], config.zoomLevel ?? 10);
+    // If center updates when following a topic we don't want to keep resetting the zoom.
+    const zoom = didResetZoomRef.current ? currentMap?.getZoom() : config.zoomLevel ?? 10;
+    currentMap?.setView([center.lat, center.lon], zoom);
+    didResetZoomRef.current = true;
   }, [center, config.zoomLevel, currentMap]);
 
   // Indicate render is complete - the effect runs after the dom is updated
