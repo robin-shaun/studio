@@ -143,7 +143,7 @@ export function ArrowMarkers(): JSX.Element {
           scene: { enableStats: false },
           cameraState: {
             distance: 4,
-            frustum: 20,
+            frustum: 10,
             perspective: true,
             phi: 1,
             targetOffset: [-0.6, 0.5, 0],

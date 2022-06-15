@@ -42,6 +42,23 @@ function ThreeDeeRenderAdapter(props: Props) {
 }
 
 ThreeDeeRenderAdapter.panelType = "3D";
-ThreeDeeRenderAdapter.defaultConfig = {};
+ThreeDeeRenderAdapter.defaultConfig = {
+  followTf: "",
+  scene: {},
+  cameraState: {
+    distance: 35.496424999999995,
+    frustum: 30,
+    perspective: true,
+    phi: 1,
+    targetOffset: [4.841595286528824, 3.382084839013197, 0],
+    thetaOffset: 0.986275733000624,
+    fovy: 0.75,
+    near: 0.01,
+    far: 5000,
+    target: [0, 0, 0],
+    targetOrientation: [0, 0, 0, 1],
+  },
+  topics: {},
+};
 
 export default Panel(ThreeDeeRenderAdapter);

@@ -88,7 +88,7 @@ function RendererOverlay(props: { enableStats: boolean }): JSX.Element {
 
 export function ThreeDeeRender({ context }: { context: PanelExtensionContext }): JSX.Element {
   const { initialState, saveState } = context;
-
+  console.log("initialState", initialState);
   // Load and save the persisted panel configuration
   const [config, setConfig] = useState<ThreeDeeRenderConfig>(() => {
     const partialConfig = initialState as DeepPartial<ThreeDeeRenderConfig> | undefined;

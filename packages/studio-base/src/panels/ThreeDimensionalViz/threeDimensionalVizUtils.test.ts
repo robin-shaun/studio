@@ -26,8 +26,8 @@ describe("threeDimensionalVizUtils", () => {
       const prevCameraState: CameraState = {
         perspective: false,
         target: [1322.127197265625, -1484.3931884765625, -20.19326400756836],
-        distance: 75,
-        frustum: 20,
+        distance: 65,
+        frustum: 30,
         phi: 0.7853981633974483,
         targetOffset: [1, 1, 1],
         targetOrientation: [0, 0, 0, 1],
@@ -56,8 +56,8 @@ describe("threeDimensionalVizUtils", () => {
       const prevCameraState: CameraState = {
         perspective: false,
         target: [1322.127197265625, -1484.3931884765625, -20.19326400756836],
-        distance: 75,
-        frustum: 20,
+        distance: 70,
+        frustum: 30,
         phi: 0.7853981633974483,
         targetOffset: [1, 1, 1],
         targetOrientation: [0, 0, 0, 1],
@@ -86,8 +86,8 @@ describe("threeDimensionalVizUtils", () => {
       const prevCameraState: CameraState = {
         perspective: false,
         target: [1322.127197265625, -1484.3931884765625, -20.19326400756836],
-        distance: 75,
-        frustum: 20,
+        distance: 85,
+        frustum: 30,
         phi: 0.7853981633974483,
         targetOffset: [1, 1, 1],
         targetOrientation: [0, 0, 0, 1],

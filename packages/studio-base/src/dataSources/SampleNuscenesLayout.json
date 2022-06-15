@@ -51,6 +51,7 @@
       "followMode": "follow",
       "cameraState": {
         "distance": 30,
+        "frustum": 30,
         "perspective": true,
         "phi": 1.0099838922608053,
         "targetOffset": [
@@ -112,6 +113,7 @@
       "followOrientation": false,
       "cameraState": {
         "distance": 111.93497850814407,
+        "frustum": 30,
         "perspective": false,
         "phi": 0.03891070297656745,
         "targetOffset": [
