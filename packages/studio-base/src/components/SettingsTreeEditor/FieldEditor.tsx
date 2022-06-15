@@ -337,7 +337,7 @@ function FieldInput({
           value={field.value}
           precision={field.precision}
           disabled={field.disabled}
-          readOnly={field.readOnly}
+          readOnly={field.readonly}
           onChange={(value) =>
             actionHandler({ action: "update", payload: { path, input: "vec2", value } })
           }
