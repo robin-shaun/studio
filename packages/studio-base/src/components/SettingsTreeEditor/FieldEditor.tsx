@@ -347,8 +347,38 @@ function FieldInput({
 }
 
 function FieldLabel({ field }: { field: DeepReadonly<SettingsTreeField> }): JSX.Element {
-  if (field.input === "vec3" || field.input === "vec2") {
-    const labels = field.labels ?? [];
+  if (field.input === "vec2") {
+    const labels = field.labels ?? ["X", "Y"];
+    return (
+      <>
+        <MultiLabelWrapper>
+          <Typography
+            title={field.label}
+            variant="subtitle2"
+            color="text.secondary"
+            noWrap
+            flex="auto"
+          >
+            {field.label}
+          </Typography>
+          {labels.map((label, index) => (
+            <Typography
+              key={label}
+              title={field.label}
+              variant="subtitle2"
+              color="text.secondary"
+              noWrap
+              style={{ gridColumn: index === 0 ? "span 1" : "2 / span 1" }}
+              flex="auto"
+            >
+              {label}
+            </Typography>
+          ))}
+        </MultiLabelWrapper>
+      </>
+    );
+  } else if (field.input === "vec3") {
+    const labels = field.labels ?? ["X", "Y", "Z"];
     return (
       <>
         <MultiLabelWrapper>
