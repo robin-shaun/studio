@@ -153,6 +153,7 @@ export class Renderer extends EventEmitter<RendererEvents> {
   // composer: EffectComposer;
   // outlinePass: OutlinePass;
   config: Immutable<ThreeDeeRenderConfig>;
+  currentCameraState: Immutable<CameraState>;
   scene: THREE.Scene;
   dirLight: THREE.DirectionalLight;
   hemiLight: THREE.HemisphereLight;
@@ -184,6 +185,10 @@ export class Renderer extends EventEmitter<RendererEvents> {
   images = new Images(this);
   grids = new Grids(this);
 
+  width: number;
+  height: number;
+  aspect: number;
+
   constructor(canvas: HTMLCanvasElement, config: ThreeDeeRenderConfig) {
     super();
 
@@ -202,6 +207,7 @@ export class Renderer extends EventEmitter<RendererEvents> {
 
     this.canvas = canvas;
     this.config = config;
+    this.currentCameraState = config.cameraState;
     this.gl = new THREE.WebGLRenderer({
       canvas,
       alpha: true,
@@ -219,13 +225,10 @@ export class Renderer extends EventEmitter<RendererEvents> {
     this.gl.sortObjects = false;
     this.gl.setPixelRatio(window.devicePixelRatio);
 
-    let width = canvas.width;
-    let height = canvas.height;
-    if (canvas.parentElement) {
-      width = canvas.parentElement.clientWidth;
-      height = canvas.parentElement.clientHeight;
-      this.gl.setSize(width, height);
-    }
+    this.width = canvas.width;
+    this.height = canvas.height;
+    this.aspect = this.width / this.height;
+    this.gl.setSize(this.width, this.height);
 
     this.modelCache = new ModelCache({ ignoreColladaUpAxis: true });
 
@@ -265,9 +268,8 @@ export class Renderer extends EventEmitter<RendererEvents> {
     const fov = 79;
     const near = 0.01; // 1cm
     const far = 10000; // 10km
-    const aspect = width / height;
 
-    this.perspectiveCamera = new THREE.PerspectiveCamera(fov, aspect, near, far);
+    this.perspectiveCamera = new THREE.PerspectiveCamera(fov, this.aspect, near, far);
     this.perspectiveCamera.up.set(0, 0, 1);
     this.perspectiveCamera.position.set(1, -3, 1);
     this.perspectiveCamera.lookAt(0, 0, 0);
@@ -277,10 +279,10 @@ export class Renderer extends EventEmitter<RendererEvents> {
     }
 
     this.orthographicCamera = new THREE.OrthographicCamera(
-      (FRUSTUM_SIZE * aspect) / -2,
-      (FRUSTUM_SIZE * aspect) / 2,
-      FRUSTUM_SIZE / 2,
-      FRUSTUM_SIZE / -2,
+      (30 * this.aspect) / -2,
+      (30 * this.aspect) / 2,
+      30 / 2,
+      30 / -2,
       near,
       far,
     );
@@ -504,8 +506,18 @@ export class Renderer extends EventEmitter<RendererEvents> {
 
   /** Translate a Worldview CameraState to the three.js coordinate system */
   setCameraState(cameraState: CameraState): void {
+    // if (this.currentCameraState.perspective !== cameraState.perspective) {
+    //   // Restore camera state
+    //   // this.config.cameraState = cameraState.perspective
+    //   //   ? (this.perspectiveCamera.userData as CameraState)
+    //   //   : (this.orthographicCamera.userData as CameraState);
+    //   this.currentCameraState = cameraState;
+    //   return;
+    // }
+
     if (cameraState.perspective) {
       //3D view mode
+      this.perspectiveCamera.userData = cameraState;
       this.perspectiveCamera.position
         .setFromSpherical(
           tempSpherical.set(cameraState.distance, cameraState.phi, -cameraState.thetaOffset),
@@ -527,30 +539,63 @@ export class Renderer extends EventEmitter<RendererEvents> {
 
       this.camera = this.perspectiveCamera;
     } else {
-      console.log(cameraState);
       //2D view mode
-      this.orthographicCamera.position.add(
-        tempVec.set(cameraState.targetOffset[0], cameraState.targetOffset[1], cameraState.distance),
+      this.orthographicCamera.userData = cameraState;
+
+      //Set position
+      this.orthographicCamera.quaternion.setFromEuler(tempEuler.set(0, 0, 0, "ZYX"));
+      this.orthographicCamera.updateMatrix();
+      this.orthographicCamera.updateMatrixWorld();
+      this.orthographicCamera.updateProjectionMatrix();
+      this.orthographicCamera.position.set(
+        cameraState.targetOffset[0],
+        cameraState.targetOffset[1],
+        cameraState.distance,
       );
+      this.orthographicCamera.updateMatrix();
+      this.orthographicCamera.updateMatrixWorld();
+      this.orthographicCamera.updateProjectionMatrix();
+
+      console.log(this.aspect, this.width);
+
+      //Set frustum : Adjust to zoom camera
+      this.orthographicCamera.left = (cameraState.distance * this.aspect) / -2;
+      this.orthographicCamera.right = (cameraState.distance * this.aspect) / 2;
+      this.orthographicCamera.top = cameraState.distance / 2;
+      this.orthographicCamera.bottom = -cameraState.distance / 2;
+
+      //Set rotation
+      this.orthographicCamera.quaternion.setFromEuler(
+        tempEuler.set(0, 0, cameraState.thetaOffset, "ZYX"),
+      );
+
+      this.orthographicCamera.near = cameraState.near;
+      this.orthographicCamera.far = cameraState.far;
 
       this.camera = this.orthographicCamera;
     }
+
+    this.currentCameraState = cameraState;
 
     this.camera.updateProjectionMatrix();
   }
 
   resizeHandler = (size: THREE.Vector2): void => {
+    this.width = size.width;
+    this.height = size.height;
+    this.aspect = size.width / size.height;
     this.gl.setPixelRatio(window.devicePixelRatio);
     this.gl.setSize(size.width, size.height);
 
-    const renderSize = this.gl.getDrawingBufferSize(tempVec2);
-    const aspect = renderSize.width / renderSize.height;
-    this.perspectiveCamera.aspect = aspect;
-    this.orthographicCamera.left = (FRUSTUM_SIZE * aspect) / -2;
-    this.orthographicCamera.right = (FRUSTUM_SIZE * aspect) / 2;
+    this.perspectiveCamera.aspect = this.aspect;
+    this.orthographicCamera.left = (this.orthographicCamera.userData.distance * this.aspect) / -2;
+    this.orthographicCamera.right = (this.orthographicCamera.userData.distance * this.aspect) / 2;
+    this.orthographicCamera.top = this.orthographicCamera.userData.distance / 2;
+    this.orthographicCamera.bottom = -this.orthographicCamera.userData.distance / 2;
+
     this.camera.updateProjectionMatrix();
 
-    log.debug(`Resized renderer to ${renderSize.width}x${renderSize.height}`);
+    log.debug(`Resized renderer to ${size.width}x${size.height}`);
     this.animationFrame();
   };
 

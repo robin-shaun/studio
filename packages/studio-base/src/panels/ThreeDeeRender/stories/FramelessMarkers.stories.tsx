@@ -67,7 +67,6 @@ export function FramelessMarkers(): JSX.Element {
           scene: { enableStats: false },
           cameraState: {
             distance: 5.5,
-            frustum: 20,
             perspective: true,
             phi: 0.5,
             targetOffset: [-0.5, 0.75, 0],

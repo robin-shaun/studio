@@ -164,7 +164,6 @@ export function ImageRender(): JSX.Element {
           scene: { enableStats: false },
           cameraState: {
             distance: 1.5,
-            frustum: 20,
             perspective: true,
             phi: 0.975,
             targetOffset: [0, 0.4, 0],

@@ -85,7 +85,6 @@ export function GeometryMsgs_Polygon(): JSX.Element {
           scene: { enableStats: false },
           cameraState: {
             distance: 8.25,
-            frustum: 20,
             perspective: true,
             phi: 1,
             targetOffset: [-0.7, 2.1, 0],

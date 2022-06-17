@@ -128,7 +128,6 @@ export function CameraInfoRender(): JSX.Element {
           scene: { enableStats: false },
           cameraState: {
             distance: 1.25,
-            frustum: 20,
             perspective: true,
             phi: 0,
             targetOffset: [0, 0, 0],

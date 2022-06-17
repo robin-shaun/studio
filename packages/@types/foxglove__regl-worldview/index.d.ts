@@ -133,7 +133,6 @@ declare module "@foxglove/regl-worldview" {
   type CameraState = {
     perspective: boolean;
     distance: number;
-    frustum: number;
     phi: number;
     target: Vec3;
     targetOffset: Vec3;

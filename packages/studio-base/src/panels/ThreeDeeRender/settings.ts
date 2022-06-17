@@ -324,7 +324,6 @@ export function buildSettingsTree(options: SettingsTreeOptions): SettingsTreeRoo
       fields: {
         perspective: { label: "Perspective", input: "boolean", value: cameraState.perspective },
         distance: { label: "Distance", input: "number", value: cameraState.distance, step: 1 },
-        frustum: { label: "Frustum", input: "number", value: cameraState.frustum, step: 1 },
         targetOffset: {
           label: "Target",
           input: "vec3",

@@ -156,7 +156,6 @@ export function Marker_PointCloud2_Alignment(): JSX.Element {
           followTf: "base_link",
           cameraState: {
             distance: 4,
-            frustum: 20,
             perspective: true,
             phi: 1,
             targetOffset: [-0.22, 2.07, 0],
