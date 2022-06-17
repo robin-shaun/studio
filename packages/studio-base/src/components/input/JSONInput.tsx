@@ -11,7 +11,7 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { InputBase } from "@mui/material";
+import { TextField, useTheme } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 
 const keyValMap: Record<string, number> = { ArrowDown: -1, ArrowUp: 1 };
@@ -24,6 +24,7 @@ export function JSONInput(props: {
   dataTest?: string;
   onChange: (newValue: unknown) => void;
 }): React.ReactElement {
+  const theme = useTheme();
   // The JSONInput is semi-controlled.
   // We need to avoid updating the input text when the user is actively editing the input.
   // The _internalValue_ is the latest value to display. When editing, the editingRef prevents
@@ -47,11 +48,15 @@ export function JSONInput(props: {
   const parsedValue = parseJson(internalValue);
   const isValid = parsedValue != undefined;
   return (
-    <InputBase
+    <TextField
+      variant="filled"
       data-test={props.dataTest ?? "json-input"}
       type="text"
       value={internalValue}
-      error={!isValid}
+      size="small"
+      InputProps={{
+        style: { color: !isValid ? theme.palette.error.main : undefined },
+      }}
       onFocus={() => {
         editingRef.current = true;
       }}

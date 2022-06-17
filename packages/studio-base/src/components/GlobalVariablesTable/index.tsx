@@ -10,127 +10,74 @@
 //   This source code is licensed under the Apache License, Version 2.0,
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
-import { Callout, DefaultButton, IconButton } from "@fluentui/react";
-import CloseIcon from "@mdi/svg/svg/close.svg";
-import { Stack } from "@mui/material";
-import { partition, pick, union, without } from "lodash";
-import { useEffect, useMemo, useCallback, useRef, useState, ReactElement } from "react";
-import styled, { css, FlattenSimpleInterpolation, keyframes } from "styled-components";
 
-import Icon from "@foxglove/studio-base/components/Icon";
-import { LegacyTable } from "@foxglove/studio-base/components/LegacyStyledComponents";
-import { Item, Menu } from "@foxglove/studio-base/components/Menu";
-import Tooltip from "@foxglove/studio-base/components/Tooltip";
+import { MoreVert } from "@mui/icons-material";
+import CloseIcon from "@mui/icons-material/Close";
+import {
+  Button,
+  Divider,
+  IconButton,
+  Menu,
+  MenuItem,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  Tooltip,
+  Typography,
+} from "@mui/material";
+import { partition, pick, without } from "lodash";
+import { useMemo, useCallback } from "react";
+
+import Stack from "@foxglove/studio-base/components/Stack";
 import { JSONInput } from "@foxglove/studio-base/components/input/JSONInput";
 import { ValidatedResizingInput } from "@foxglove/studio-base/components/input/ValidatedResizingInput";
 import useGlobalVariables, {
   GlobalVariables,
 } from "@foxglove/studio-base/hooks/useGlobalVariables";
 import useLinkedGlobalVariables from "@foxglove/studio-base/panels/ThreeDimensionalViz/Interactions/useLinkedGlobalVariables";
-import { colors as sharedColors, fonts } from "@foxglove/studio-base/util/sharedStyleConstants";
+// import { colors as sharedColors } from "@foxglove/studio-base/util/sharedStyleConstants";
 
 // The minimum amount of time to wait between showing the global variable update animation again
-export const ANIMATION_RESET_DELAY_MS = 3000;
+// export const ANIMATION_RESET_DELAY_MS = 3000;
 
 // Returns an keyframe object that animates between two styles– "highlight twice then return to normal"
-export const makeFlashAnimation = (
-  initialCssProps: FlattenSimpleInterpolation,
-  highlightCssProps: FlattenSimpleInterpolation,
-): FlattenSimpleInterpolation => {
-  return css`
-    ${keyframes`
-      0%, 20%, 100% {
-        ${initialCssProps}
-      }
-      10%, 30%, 80% {
-        ${highlightCssProps}
-      }
-    `}
-  `;
-};
+// const makeFlashAnimation = (
+//   initialCssProps: FlattenSimpleInterpolation,
+//   highlightCssProps: FlattenSimpleInterpolation,
+// ): FlattenSimpleInterpolation => {
+//   return css`
+//     ${keyframes`
+//       0%, 20%, 100% {
+//         ${initialCssProps}
+//       }
+//       10%, 30%, 80% {
+//         ${highlightCssProps}
+//       }
+//     `}
+//   `;
+// };
 
-const SGlobalVariablesTable = styled.div`
-  display: flex;
-  flex-direction: column;
-  white-space: nowrap;
+// const FlashRowAnimation = makeFlashAnimation(
+//   css`
+//     background: transparent;
+//   `,
+//   css`
+//     background: ${sharedColors.HIGHLIGHT_MUTED};
+//   `,
+// );
 
-  table {
-    width: calc(100% + 1px);
-  }
-
-  thead {
-    user-select: none;
-    border-bottom: 1px solid ${sharedColors.BORDER_LIGHT};
-  }
-
-  th,
-  td {
-    line-height: 100%;
-    padding: 8px 4px !important;
-    border: none;
-  }
-
-  tr:first-child th {
-    border: none;
-    text-align: left;
-  }
-
-  td {
-    input {
-      background: none !important;
-      color: ${({ theme }) => theme.semanticColors.inputText};
-      width: 100%;
-      min-width: 5em;
-      padding: 0;
-      border: 0;
-      font: inherit;
-      font-family: ${fonts.SANS_SERIF};
-      font-feature-settings: ${fonts.SANS_SERIF_FEATURE_SETTINGS};
-      font-size: 100%;
-    }
-    input:focus {
-      outline: none;
-    }
-  }
-`;
-
-const SIconWrapper = styled.span<{ isOpen?: boolean }>`
-  display: inline-block;
-  cursor: pointer;
-  padding: 0;
-
-  svg {
-    opacity: ${({ isOpen = false }) => (isOpen ? 1 : undefined)};
-  }
-`;
-
-const SLinkedTopicsSpan = styled.span`
-  overflow: hidden;
-  text-overflow: ellipsis;
-  direction: rtl;
-  max-width: 240px;
-  margin-left: -5px;
-`;
-
-const FlashRowAnimation = makeFlashAnimation(
-  css`
-    background: transparent;
-  `,
-  css`
-    background: ${sharedColors.HIGHLIGHT_MUTED};
-  `,
-);
-
-const AnimationDuration = 3;
-const SAnimatedRow = styled.tr<{ animate: boolean; skipAnimation: boolean }>`
-  background: transparent;
-  animation: ${({ animate, skipAnimation }) =>
-      animate && !skipAnimation ? FlashRowAnimation : "none"}
-    ${AnimationDuration}s ease-in-out;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-  border-bottom: 1px solid ${sharedColors.BORDER_LIGHT};
-`;
+// const AnimationDuration = 3;
+// const SAnimatedRow = styled.tr<{ animate: boolean; skipAnimation: boolean }>`
+//   background: transparent;
+//   animation: ${({ animate, skipAnimation }) =>
+//       animate && !skipAnimation ? FlashRowAnimation : "none"}
+//     ${AnimationDuration}s ease-in-out;
+//   animation-iteration-count: 1;
+//   animation-fill-mode: forwards;
+//   border-bottom: 1px solid ${sharedColors.BORDER_LIGHT};
+// `;
 
 export function isActiveElementEditable(): boolean {
   const activeEl = document.activeElement;
@@ -157,8 +104,10 @@ const changeGlobalKey = (
   });
 };
 
-function LinkedGlobalVariableRow({ name }: { name: string }): ReactElement {
-  const [isOpen, setIsOpen] = useState<boolean>(false);
+function LinkedGlobalVariableRow({ name }: { name: string }): JSX.Element {
+  const [anchorEl, setAnchorEl] = React.useState<undefined | HTMLElement>(undefined);
+  const open = Boolean(anchorEl);
+
   const { globalVariables, setGlobalVariables } = useGlobalVariables();
   const { linkedGlobalVariables, setLinkedGlobalVariables } = useLinkedGlobalVariables();
 
@@ -190,71 +139,91 @@ function LinkedGlobalVariableRow({ name }: { name: string }): ReactElement {
     setGlobalVariables({ [name]: undefined });
   }, [linkedGlobalVariables, name, setGlobalVariables, setLinkedGlobalVariables]);
 
-  const moreButton = useRef<HTMLElement>(ReactNull);
+  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+  const handleClose = () => {
+    setAnchorEl(undefined);
+  };
 
   return (
-    <>
-      <td>${name}</td>
-      <td width="100%">
+    <TableRow>
+      <TableCell>${name}</TableCell>
+      <TableCell padding="none">
         <JSONInput
           value={JSON.stringify(globalVariables[name]) ?? ""}
           onChange={(newVal) => setGlobalVariables({ [name]: newVal })}
         />
-      </td>
-      <td>
+      </TableCell>
+      <TableCell>
         <Stack direction="row" flex="auto" alignItems="center" justifyContent="space-between">
-          <Stack direction="row" flex="auto" marginRight={2}>
+          <Stack direction="row" flex="auto">
             {linkedTopicPaths.length > 1 && <span>({linkedTopicPaths.length})</span>}
-
             <Tooltip
-              contents={
-                linkedTopicPaths.length > 0 ? (
-                  <>
-                    <div style={{ fontWeight: "bold", opacity: 0.4 }}>
+              arrow
+              title={
+                linkedTopicPaths.length > 0 && (
+                  <Stack gap={0.5}>
+                    <Typography variant="overline" color="text.secondary">
                       {linkedTopicPaths.length} LINKED TOPIC{linkedTopicPaths.length > 1 ? "S" : ""}
-                    </div>
+                    </Typography>
                     {linkedTopicPaths.map((path) => (
-                      <div key={path} style={{ paddingTop: "5px" }}>
+                      <Typography key={path} variant="body2">
                         {path}
-                      </div>
+                      </Typography>
                     ))}
-                  </>
-                ) : undefined
+                  </Stack>
+                )
               }
             >
-              <SLinkedTopicsSpan>
+              <Typography noWrap variant="inherit" maxWidth="99.9%">
                 {linkedTopicPaths.length > 0 ? <bdi>{linkedTopicPaths.join(", ")}</bdi> : "--"}
-              </SLinkedTopicsSpan>
+              </Typography>
             </Tooltip>
           </Stack>
-          <IconButton
-            elementRef={moreButton}
-            iconProps={{ iconName: "MoreVertical" }}
-            onClick={() => setIsOpen(!isOpen)}
-          >
-            {isOpen && (
-              // use Callout instead of a menu on the button for now so that we can style the menu text
-              <Callout target={moreButton} isBeakVisible={false} onDismiss={() => setIsOpen(false)}>
-                <Menu style={{ padding: "4px 0px" }}>
-                  {linkedTopicPaths.map((path) => (
-                    <Item dataTest="unlink-path" key={path} onClick={() => unlink(path)}>
-                      <span>
-                        Remove <span style={{ color: sharedColors.LIGHT, opacity: 1 }}>{path}</span>
-                      </span>
-                    </Item>
-                  ))}
-                  <Item onClick={unlinkAndDelete}>Delete variable</Item>
-                </Menu>
-              </Callout>
-            )}
-          </IconButton>
         </Stack>
-      </td>
-    </>
+      </TableCell>
+      <TableCell>
+        <IconButton
+          id="linked-topics-button"
+          aria-controls={open ? "linked-topics-menu" : undefined}
+          aria-haspopup="true"
+          aria-expanded={open ? "true" : undefined}
+          onClick={handleClick}
+        >
+          <MoreVert fontSize="small" />
+        </IconButton>
+        <Menu
+          id="linked-topics-menu"
+          anchorEl={anchorEl}
+          open={open}
+          onClose={handleClose}
+          MenuListProps={{
+            "aria-labelledby": "linked-topics-button",
+            dense: true,
+          }}
+        >
+          {linkedTopicPaths.map((path) => (
+            <MenuItem data-test="unlink-path" key={path} onClick={() => unlink(path)}>
+              {`Remove ${path}`}
+            </MenuItem>
+          ))}
+          <Divider />
+          <MenuItem
+            onClick={() => {
+              unlinkAndDelete();
+              handleClose();
+            }}
+          >
+            Delete variable
+          </MenuItem>
+        </Menu>
+      </TableCell>
+    </TableRow>
   );
 }
 
-function GlobalVariablesTable(): ReactElement {
+function GlobalVariablesTable(): JSX.Element {
   const { globalVariables, setGlobalVariables, overwriteGlobalVariables } = useGlobalVariables();
   const { linkedGlobalVariablesByName } = useLinkedGlobalVariables();
   const globalVariableNames = useMemo(() => Object.keys(globalVariables), [globalVariables]);
@@ -264,61 +233,58 @@ function GlobalVariablesTable(): ReactElement {
   }, [globalVariableNames, linkedGlobalVariablesByName]);
 
   // Don't run the animation when the Table first renders
-  const skipAnimation = useRef<boolean>(true);
-  useEffect(() => {
-    const timeoutId = setTimeout(() => (skipAnimation.current = false), ANIMATION_RESET_DELAY_MS);
-    return () => clearTimeout(timeoutId);
-  }, []);
+  // const skipAnimation = useRef<boolean>(true);
+  // useEffect(() => {
+  //   const timeoutId = setTimeout(() => (skipAnimation.current = false), ANIMATION_RESET_DELAY_MS);
+  //   return () => clearTimeout(timeoutId);
+  // }, []);
 
-  const previousGlobalVariablesRef = useRef<GlobalVariables | undefined>(globalVariables);
+  // const previousGlobalVariablesRef = useRef<GlobalVariables | undefined>(globalVariables);
 
-  const [changedVariables, setChangedVariables] = useState<string[]>([]);
-  useEffect(() => {
-    if (skipAnimation.current || isActiveElementEditable()) {
-      previousGlobalVariablesRef.current = globalVariables;
-      return;
-    }
-    const newChangedVariables = union(
-      Object.keys(globalVariables),
-      Object.keys(previousGlobalVariablesRef.current ?? {}),
-    ).filter((name) => {
-      const previousValue = previousGlobalVariablesRef.current?.[name];
-      return previousValue !== globalVariables[name];
-    });
+  // const [changedVariables, setChangedVariables] = useState<string[]>([]);
+  // useEffect(() => {
+  //   if (skipAnimation.current || isActiveElementEditable()) {
+  //     previousGlobalVariablesRef.current = globalVariables;
+  //     return;
+  //   }
+  //   const newChangedVariables = union(
+  //     Object.keys(globalVariables),
+  //     Object.keys(previousGlobalVariablesRef.current ?? {}),
+  //   ).filter((name) => {
+  //     const previousValue = previousGlobalVariablesRef.current?.[name];
+  //     return previousValue !== globalVariables[name];
+  //   });
 
-    setChangedVariables(newChangedVariables);
-    previousGlobalVariablesRef.current = globalVariables;
-    const timerId = setTimeout(() => setChangedVariables([]), ANIMATION_RESET_DELAY_MS);
-    return () => clearTimeout(timerId);
-  }, [globalVariables, skipAnimation]);
+  //   setChangedVariables(newChangedVariables);
+  //   previousGlobalVariablesRef.current = globalVariables;
+  //   const timerId = setTimeout(() => setChangedVariables([]), ANIMATION_RESET_DELAY_MS);
+  //   return () => clearTimeout(timerId);
+  // }, [globalVariables, skipAnimation]);
 
   return (
-    <SGlobalVariablesTable>
-      <LegacyTable>
-        <thead>
-          <tr>
-            <th>Variable</th>
-            <th>Value</th>
-            <th>Topic(s)</th>
-          </tr>
-        </thead>
-        <tbody>
+    <Stack gap={1} style={{ marginLeft: -16, marginRight: -16 }}>
+      <Table size="small">
+        <TableHead>
+          <TableRow>
+            <TableCell>Variable</TableCell>
+            <TableCell padding="none" width="40%">
+              Value
+            </TableCell>
+            <TableCell>Topic(s)</TableCell>
+            <TableCell>&nbsp;</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
           {linked.map((name, idx) => (
-            <SAnimatedRow
-              key={`linked-${idx}`}
-              skipAnimation={skipAnimation.current}
-              animate={changedVariables.includes(name)}
-            >
-              <LinkedGlobalVariableRow name={name} />
-            </SAnimatedRow>
+            <LinkedGlobalVariableRow key={`linked-${idx}`} name={name} />
           ))}
           {unlinked.map((name, idx) => (
-            <SAnimatedRow
+            <TableRow
               key={`unlinked-${idx}`}
-              skipAnimation={skipAnimation.current}
-              animate={changedVariables.includes(name)}
+              // skipAnimation={skipAnimation.current}
+              // animate={changedVariables.includes(name)}
             >
-              <td data-test="global-variable-key">
+              <TableCell data-test="global-variable-key">
                 <ValidatedResizingInput
                   value={name}
                   dataTest={`global-variable-key-input-${name}`}
@@ -333,8 +299,8 @@ function GlobalVariablesTable(): ReactElement {
                   }
                   invalidInputs={without(globalVariableNames, name).concat("")}
                 />
-              </td>
-              <td width="100%">
+              </TableCell>
+              <TableCell padding="none">
                 <JSONInput
                   dataTest={`global-variable-value-input-${JSON.stringify(
                     globalVariables[name] ?? "",
@@ -342,34 +308,38 @@ function GlobalVariablesTable(): ReactElement {
                   value={JSON.stringify(globalVariables[name]) ?? ""}
                   onChange={(newVal) => setGlobalVariables({ [name]: newVal })}
                 />
-              </td>
-              <td width="100%">
+              </TableCell>
+              <TableCell>
                 <Stack
                   direction="row"
                   flex="auto"
                   alignItems="center"
                   justifyContent="space-between"
+                  gap={1}
                 >
                   --
-                  <SIconWrapper onClick={() => setGlobalVariables({ [name]: undefined })}>
-                    <Icon size="small">
-                      <CloseIcon />
-                    </Icon>
-                  </SIconWrapper>
                 </Stack>
-              </td>
-            </SAnimatedRow>
+              </TableCell>
+              <TableCell>
+                <IconButton onClick={() => setGlobalVariables({ [name]: undefined })}>
+                  <CloseIcon fontSize="small" />
+                </IconButton>
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </LegacyTable>
-      <Stack direction="row" flex="auto" marginTop={2.5}>
-        <DefaultButton
-          text="Add variable"
+        </TableBody>
+      </Table>
+      <Stack direction="row" flex="auto">
+        <Button
+          variant="outlined"
+          color="inherit"
           disabled={globalVariables[""] != undefined}
           onClick={() => setGlobalVariables({ "": "" })}
-        />
+        >
+          Add variable
+        </Button>
       </Stack>
-    </SGlobalVariablesTable>
+    </Stack>
   );
 }
 
