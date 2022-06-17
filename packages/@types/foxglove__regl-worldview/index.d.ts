@@ -127,12 +127,12 @@ declare module "@foxglove/regl-worldview" {
     object: BaseShape;
     instanceIndex?: number;
   };
-  type Vec2 = readonly [number, number];
+
   type Vec3 = readonly [number, number, number];
   type Vec4 = readonly [number, number, number, number];
   type CameraState = {
-    perspective: boolean;
     distance: number;
+    perspective: boolean;
     phi: number;
     target: Vec3;
     targetOffset: Vec3;
