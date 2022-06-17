@@ -120,9 +120,6 @@ const PI_2 = Math.PI / 2;
 
 const TRANSFORMS_PATH = ["transforms"];
 
-//frustum size of orthographic camera - 100m
-const FRUSTUM_SIZE = 100;
-
 export const SUPPORTED_DATATYPES = new Set<string>();
 mergeSetInto(SUPPORTED_DATATYPES, TRANSFORM_STAMPED_DATATYPES);
 mergeSetInto(SUPPORTED_DATATYPES, TF_DATATYPES);

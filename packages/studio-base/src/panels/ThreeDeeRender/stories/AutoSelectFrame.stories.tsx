@@ -93,7 +93,7 @@ export function AutoSelectFrame(): JSX.Element {
       <ThreeDeeRender
         overrideConfig={{
           ...ThreeDeeRender.defaultConfig,
-          followTf: "",
+          followTf: undefined,
           scene: { enableStats: false },
           cameraState: {
             distance: 4,
