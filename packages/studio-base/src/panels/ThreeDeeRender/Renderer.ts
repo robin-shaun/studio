@@ -287,10 +287,13 @@ export class Renderer extends EventEmitter<RendererEvents> {
       far,
     );
     this.orthographicCamera.position.z = 1000;
+
     if (DEBUG_CAMERA) {
       const helper = new THREE.CameraHelper(this.orthographicCamera);
       this.scene.add(helper);
     }
+
+    // this.scene.add(new THREE.AxesHelper(200));
 
     this.camera = this.perspectiveCamera;
 
@@ -506,15 +509,6 @@ export class Renderer extends EventEmitter<RendererEvents> {
 
   /** Translate a Worldview CameraState to the three.js coordinate system */
   setCameraState(cameraState: CameraState): void {
-    // if (this.currentCameraState.perspective !== cameraState.perspective) {
-    //   // Restore camera state
-    //   // this.config.cameraState = cameraState.perspective
-    //   //   ? (this.perspectiveCamera.userData as CameraState)
-    //   //   : (this.orthographicCamera.userData as CameraState);
-    //   this.currentCameraState = cameraState;
-    //   return;
-    // }
-
     if (cameraState.perspective) {
       //3D view mode
       this.perspectiveCamera.userData = cameraState;
@@ -527,7 +521,7 @@ export class Renderer extends EventEmitter<RendererEvents> {
         tempVec.set(
           cameraState.targetOffset[0],
           cameraState.targetOffset[1],
-          cameraState.targetOffset[2], // always 0 in Worldview CameraListener
+          cameraState.targetOffset[2],
         ),
       );
       this.perspectiveCamera.quaternion.setFromEuler(
@@ -542,32 +536,17 @@ export class Renderer extends EventEmitter<RendererEvents> {
       //2D view mode
       this.orthographicCamera.userData = cameraState;
 
-      //Set position
-      this.orthographicCamera.quaternion.setFromEuler(tempEuler.set(0, 0, 0, "ZYX"));
-      this.orthographicCamera.updateMatrix();
-      this.orthographicCamera.updateMatrixWorld();
-      this.orthographicCamera.updateProjectionMatrix();
-      this.orthographicCamera.position.set(
-        cameraState.targetOffset[0],
-        cameraState.targetOffset[1],
-        cameraState.distance,
+      this.orthographicCamera.quaternion.setFromEuler(
+        tempEuler.set(0, 0, cameraState.thetaOffset, "ZYX"),
       );
-      this.orthographicCamera.updateMatrix();
-      this.orthographicCamera.updateMatrixWorld();
-      this.orthographicCamera.updateProjectionMatrix();
 
-      console.log(this.aspect, this.width);
+      this.orthographicCamera.position.x = cameraState.targetOffset[0];
+      this.orthographicCamera.position.y = cameraState.targetOffset[1];
 
-      //Set frustum : Adjust to zoom camera
       this.orthographicCamera.left = (cameraState.distance * this.aspect) / -2;
       this.orthographicCamera.right = (cameraState.distance * this.aspect) / 2;
       this.orthographicCamera.top = cameraState.distance / 2;
       this.orthographicCamera.bottom = -cameraState.distance / 2;
-
-      //Set rotation
-      this.orthographicCamera.quaternion.setFromEuler(
-        tempEuler.set(0, 0, cameraState.thetaOffset, "ZYX"),
-      );
 
       this.orthographicCamera.near = cameraState.near;
       this.orthographicCamera.far = cameraState.far;
