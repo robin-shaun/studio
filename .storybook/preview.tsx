@@ -58,7 +58,7 @@ function StudioContextProviders({
     console.error = (...args: unknown[]) => {
       throw new Error(args.toString());
     };
-  }, []);
+  });
 
   if (ctx.parameters.useReadySignal === true) {
     const sig = signal();
