@@ -3,7 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Story, StoryContext } from "@storybook/react";
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useEffect } from "react";
 import { ToastProvider } from "react-toast-notifications";
 
 import { signal } from "@foxglove/den/async";
@@ -54,6 +54,12 @@ function StudioContextProviders({
   children,
   ctx,
 }: React.PropsWithChildren<{ ctx: StoryContext }>): JSX.Element {
+  useEffect(() => {
+    console.error = (...args: unknown[]) => {
+      throw new Error(args.toString());
+    };
+  }, []);
+
   if (ctx.parameters.useReadySignal === true) {
     const sig = signal();
     ctx.parameters.storyReady = sig;
