@@ -15,6 +15,7 @@ import { MoreVert } from "@mui/icons-material";
 import CloseIcon from "@mui/icons-material/Close";
 import {
   Button,
+  Chip,
   Divider,
   IconButton,
   Menu,
@@ -22,10 +23,12 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableContainer,
   TableHead,
   TableRow,
   Tooltip,
   Typography,
+  styled as muiStyled,
 } from "@mui/material";
 import { partition, pick, union, without } from "lodash";
 import { useMemo, useCallback, useRef, useEffect, useState } from "react";
@@ -40,6 +43,24 @@ import useLinkedGlobalVariables from "@foxglove/studio-base/panels/ThreeDimensio
 
 // The minimum amount of time to wait between showing the global variable update animation again
 export const ANIMATION_RESET_DELAY_MS = 3000;
+
+const StyledInputWrapper = muiStyled("div")(({ theme }) => ({
+  input: {
+    marginLeft: theme.spacing(-1),
+    font: "inherit",
+    width: "100%",
+    appearance: "none",
+    backgroundColor: "transparent",
+    color: theme.palette.text.primary,
+    border: "none",
+    padding: theme.spacing(0.75, 1),
+    borderRadius: theme.shape.borderRadius,
+
+    "&:hover, &:focus, &:focus-within": {
+      outline: "none",
+    },
+  },
+}));
 
 export function isActiveElementEditable(): boolean {
   const activeEl = document.activeElement;
@@ -109,44 +130,60 @@ function LinkedGlobalVariableRow({ name }: { name: string }): JSX.Element {
   };
 
   return (
-    <TableRow>
-      <TableCell>${name}</TableCell>
-      <TableCell padding="none">
+    <TableRow hover>
+      <TableCell padding="checkbox" style={{ width: 1 }}>
+        <Chip color="primary" size="small" label={`$${name}`} />
+      </TableCell>
+      <TableCell
+        padding="none"
+        style={{
+          overflow: "hidden",
+          maxWidth: 1,
+          minWidth: 80,
+        }}
+      >
         <JSONInput
+          fullWidth
+          variant="filled"
+          size="small"
           value={JSON.stringify(globalVariables[name]) ?? ""}
           onChange={(newVal) => setGlobalVariables({ [name]: newVal })}
         />
       </TableCell>
-      <TableCell>
-        <Stack direction="row" flex="auto" alignItems="center" justifyContent="space-between">
-          <Stack direction="row" flex="auto">
-            {linkedTopicPaths.length > 1 && <span>({linkedTopicPaths.length})</span>}
-            <Tooltip
-              arrow
-              title={
-                linkedTopicPaths.length > 0 && (
-                  <Stack gap={0.5}>
-                    <Typography variant="overline" color="text.secondary">
-                      {linkedTopicPaths.length} LINKED TOPIC{linkedTopicPaths.length > 1 ? "S" : ""}
-                    </Typography>
-                    {linkedTopicPaths.map((path) => (
-                      <Typography key={path} variant="body2">
-                        {path}
-                      </Typography>
-                    ))}
-                  </Stack>
-                )
-              }
-            >
-              <Typography noWrap variant="inherit" maxWidth="99.9%">
-                {linkedTopicPaths.length > 0 ? <bdi>{linkedTopicPaths.join(", ")}</bdi> : "--"}
+      <Tooltip
+        arrow
+        title={
+          linkedTopicPaths.length > 0 && (
+            <Stack gap={0.5}>
+              <Typography variant="overline" color="text.secondary">
+                {linkedTopicPaths.length} LINKED TOPIC{linkedTopicPaths.length > 1 ? "S" : ""}
               </Typography>
-            </Tooltip>
-          </Stack>
-        </Stack>
-      </TableCell>
-      <TableCell>
+              {linkedTopicPaths.map((path) => (
+                <Typography key={path} variant="body2">
+                  {path}
+                </Typography>
+              ))}
+            </Stack>
+          )
+        }
+      >
+        <TableCell
+          style={{
+            whiteSpace: "nowrap",
+            textOverflow: "ellipsis",
+            overflow: "hidden",
+            maxWidth: 1,
+            minWidth: 200,
+          }}
+        >
+          {linkedTopicPaths.length > 1 && <span>({linkedTopicPaths.length})</span>}
+          <>{linkedTopicPaths.length > 0 ? <bdi>{linkedTopicPaths.join(", ")}</bdi> : "–"}</>
+        </TableCell>
+      </Tooltip>
+      <TableCell align="right" style={{ width: 1 }}>
         <IconButton
+          size="small"
+          edge="end"
           id="linked-topics-button"
           aria-controls={open ? "linked-topics-menu" : undefined}
           aria-haspopup="true"
@@ -224,70 +261,85 @@ function GlobalVariablesTable(): JSX.Element {
   }, [globalVariables, skipAnimation]);
 
   return (
-    <Stack gap={1} style={{ marginLeft: -16, marginRight: -16 }}>
-      <Table size="small">
-        <TableHead>
-          <TableRow>
-            <TableCell>Variable</TableCell>
-            <TableCell padding="none" width="40%">
-              Value
-            </TableCell>
-            <TableCell>Topic(s)</TableCell>
-            <TableCell>&nbsp;</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {linked.map((name, idx) => (
-            <LinkedGlobalVariableRow key={`linked-${idx}`} name={name} />
-          ))}
-          {unlinked.map((name, idx) => (
-            <TableRow key={`unlinked-${idx}`} selected={changedVariables.includes(name)}>
-              <TableCell data-test="global-variable-key">
-                <ValidatedResizingInput
-                  value={name}
-                  dataTest={`global-variable-key-input-${name}`}
-                  onChange={(newKey) =>
-                    changeGlobalKey(
-                      newKey,
-                      name,
-                      globalVariables,
-                      linked.length + idx,
-                      overwriteGlobalVariables,
-                    )
-                  }
-                  invalidInputs={without(globalVariableNames, name).concat("")}
-                />
-              </TableCell>
-              <TableCell padding="none">
-                <JSONInput
-                  dataTest={`global-variable-value-input-${JSON.stringify(
-                    globalVariables[name] ?? "",
-                  )}`}
-                  value={JSON.stringify(globalVariables[name]) ?? ""}
-                  onChange={(newVal) => setGlobalVariables({ [name]: newVal })}
-                />
-              </TableCell>
-              <TableCell>
-                <Stack
-                  direction="row"
-                  flex="auto"
-                  alignItems="center"
-                  justifyContent="space-between"
-                  gap={1}
-                >
-                  --
-                </Stack>
-              </TableCell>
-              <TableCell>
-                <IconButton onClick={() => setGlobalVariables({ [name]: undefined })}>
-                  <CloseIcon fontSize="small" />
-                </IconButton>
-              </TableCell>
+    <Stack gap={1}>
+      <TableContainer>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>Name</TableCell>
+              <TableCell padding="none">Value</TableCell>
+              <TableCell>Topic(s)</TableCell>
+              <TableCell>&nbsp;</TableCell>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      <Stack direction="row" flex="auto">
+          </TableHead>
+          <TableBody>
+            {linked.map((name, idx) => (
+              <LinkedGlobalVariableRow key={`linked-${idx}`} name={name} />
+            ))}
+            {unlinked.map((name, idx) => (
+              <TableRow key={`unlinked-${idx}`} hover selected={changedVariables.includes(name)}>
+                <TableCell data-test="global-variable-key" style={{ width: 1 }}>
+                  <StyledInputWrapper>
+                    <ValidatedResizingInput
+                      value={name}
+                      dataTest={`global-variable-key-input-${name}`}
+                      onChange={(newKey) =>
+                        changeGlobalKey(
+                          newKey,
+                          name,
+                          globalVariables,
+                          linked.length + idx,
+                          overwriteGlobalVariables,
+                        )
+                      }
+                      invalidInputs={without(globalVariableNames, name).concat("")}
+                    />
+                  </StyledInputWrapper>
+                </TableCell>
+                <TableCell
+                  padding="none"
+                  style={{
+                    overflow: "hidden",
+                    maxWidth: 1,
+                  }}
+                >
+                  <JSONInput
+                    data-test={`global-variable-value-input-${JSON.stringify(
+                      globalVariables[name] ?? "",
+                    )}`}
+                    variant="filled"
+                    size="small"
+                    fullWidth
+                    value={JSON.stringify(globalVariables[name]) ?? ""}
+                    onChange={(newVal) => setGlobalVariables({ [name]: newVal })}
+                  />
+                </TableCell>
+                <TableCell>
+                  <Stack
+                    direction="row"
+                    flex="auto"
+                    alignItems="center"
+                    justifyContent="space-between"
+                    gap={1}
+                  >
+                    &ndash;
+                  </Stack>
+                </TableCell>
+                <TableCell align="right" style={{ width: 1 }}>
+                  <IconButton
+                    size="small"
+                    edge="end"
+                    onClick={() => setGlobalVariables({ [name]: undefined })}
+                  >
+                    <CloseIcon fontSize="small" />
+                  </IconButton>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+      <Stack direction="row" flex="auto" paddingX={2} paddingY={1}>
         <Button
           variant="outlined"
           color="inherit"

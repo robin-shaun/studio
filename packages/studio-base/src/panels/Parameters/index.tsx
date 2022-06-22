@@ -132,7 +132,7 @@ function Parameters(): ReactElement {
                     <td width="100%">
                       {canSetParams ? (
                         <JSONInput
-                          dataTest={`parameter-value-input-${value}`}
+                          data-test={`parameter-value-input-${value}`}
                           value={value}
                           onChange={(newVal) => {
                             setParameter(name, newVal as ParameterValue);

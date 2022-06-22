@@ -11,7 +11,7 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { TextField, useTheme } from "@mui/material";
+import { TextField, TextFieldProps } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 
 const keyValMap: Record<string, number> = { ArrowDown: -1, ArrowUp: 1 };
@@ -19,44 +19,43 @@ const keyValMap: Record<string, number> = { ArrowDown: -1, ArrowUp: 1 };
 /**
  * JSONInput displays a json value and allows the user to edit the value.
  */
-export function JSONInput(props: {
-  value: string;
-  dataTest?: string;
-  onChange: (newValue: unknown) => void;
-}): React.ReactElement {
-  const theme = useTheme();
+export function JSONInput(
+  props: Omit<TextFieldProps, "value" | "onChange"> & {
+    value: string;
+    onChange: (newValue: unknown) => void;
+  },
+): React.ReactElement {
+  const { onChange, value, ...rest } = props;
+
   // The JSONInput is semi-controlled.
   // We need to avoid updating the input text when the user is actively editing the input.
   // The _internalValue_ is the latest value to display. When editing, the editingRef prevents
   // updates to the internal value from new props. When not editing, new props can update the value.
-  const [internalValue, setInternalValue] = useState<string>(props.value);
+  const [internalValue, setInternalValue] = useState<string>(value);
   const editingRef = useRef(false);
 
   // keep track of the last prop value we've seen so if we leave edit mode with no changes
   // we can update the input field to the value
-  const lastPropValueRef = useRef<string | undefined>(props.value);
-  lastPropValueRef.current = props.value;
+  const lastPropValueRef = useRef<string | undefined>(value);
+  lastPropValueRef.current = value;
 
   useEffect(() => {
     if (editingRef.current) {
       return;
     }
-
-    setInternalValue(props.value);
-  }, [props.value]);
+    setInternalValue(value);
+  }, [value]);
 
   const parsedValue = parseJson(internalValue);
   const isValid = parsedValue != undefined;
+
   return (
     <TextField
-      variant="filled"
-      data-test={props.dataTest ?? "json-input"}
+      data-test="json-input"
       type="text"
+      {...rest}
       value={internalValue}
-      size="small"
-      InputProps={{
-        style: { color: !isValid ? theme.palette.error.main : undefined },
-      }}
+      error={!isValid}
       onFocus={() => {
         editingRef.current = true;
       }}
@@ -73,7 +72,7 @@ export function JSONInput(props: {
         setInternalValue(e.target.value);
         const newParsedValue = parseJson(e.target.value);
         if (newParsedValue != undefined) {
-          props.onChange(newParsedValue);
+          onChange(newParsedValue);
         }
       }}
       onKeyDown={(e) => {
@@ -83,7 +82,7 @@ export function JSONInput(props: {
 
           lastPropValueRef.current = undefined;
           setInternalValue(`${newParsedValue}`);
-          props.onChange(newParsedValue);
+          onChange(newParsedValue);
         }
       }}
     />

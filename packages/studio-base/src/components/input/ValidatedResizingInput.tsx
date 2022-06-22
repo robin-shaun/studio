@@ -21,12 +21,14 @@ export function ValidatedResizingInput(props: {
 }): JSX.Element {
   const [internalValue, setInternalValue] = useState<string>(props.value);
   const lastPropsValue = useRef<string>(props.value);
+
   if (lastPropsValue.current !== props.value) {
     lastPropsValue.current = props.value;
     setInternalValue(props.value);
   }
   return (
     <ReactInputAutosize
+      autoFocus
       value={`$${internalValue}`}
       data-test={props.dataTest}
       onChange={(event) => {
