@@ -27,8 +27,8 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { partition, pick, without } from "lodash";
-import { useMemo, useCallback } from "react";
+import { partition, pick, union, without } from "lodash";
+import { useMemo, useCallback, useRef, useEffect, useState } from "react";
 
 import Stack from "@foxglove/studio-base/components/Stack";
 import { JSONInput } from "@foxglove/studio-base/components/input/JSONInput";
@@ -37,47 +37,9 @@ import useGlobalVariables, {
   GlobalVariables,
 } from "@foxglove/studio-base/hooks/useGlobalVariables";
 import useLinkedGlobalVariables from "@foxglove/studio-base/panels/ThreeDimensionalViz/Interactions/useLinkedGlobalVariables";
-// import { colors as sharedColors } from "@foxglove/studio-base/util/sharedStyleConstants";
 
 // The minimum amount of time to wait between showing the global variable update animation again
-// export const ANIMATION_RESET_DELAY_MS = 3000;
-
-// Returns an keyframe object that animates between two styles– "highlight twice then return to normal"
-// const makeFlashAnimation = (
-//   initialCssProps: FlattenSimpleInterpolation,
-//   highlightCssProps: FlattenSimpleInterpolation,
-// ): FlattenSimpleInterpolation => {
-//   return css`
-//     ${keyframes`
-//       0%, 20%, 100% {
-//         ${initialCssProps}
-//       }
-//       10%, 30%, 80% {
-//         ${highlightCssProps}
-//       }
-//     `}
-//   `;
-// };
-
-// const FlashRowAnimation = makeFlashAnimation(
-//   css`
-//     background: transparent;
-//   `,
-//   css`
-//     background: ${sharedColors.HIGHLIGHT_MUTED};
-//   `,
-// );
-
-// const AnimationDuration = 3;
-// const SAnimatedRow = styled.tr<{ animate: boolean; skipAnimation: boolean }>`
-//   background: transparent;
-//   animation: ${({ animate, skipAnimation }) =>
-//       animate && !skipAnimation ? FlashRowAnimation : "none"}
-//     ${AnimationDuration}s ease-in-out;
-//   animation-iteration-count: 1;
-//   animation-fill-mode: forwards;
-//   border-bottom: 1px solid ${sharedColors.BORDER_LIGHT};
-// `;
+export const ANIMATION_RESET_DELAY_MS = 3000;
 
 export function isActiveElementEditable(): boolean {
   const activeEl = document.activeElement;
@@ -233,33 +195,33 @@ function GlobalVariablesTable(): JSX.Element {
   }, [globalVariableNames, linkedGlobalVariablesByName]);
 
   // Don't run the animation when the Table first renders
-  // const skipAnimation = useRef<boolean>(true);
-  // useEffect(() => {
-  //   const timeoutId = setTimeout(() => (skipAnimation.current = false), ANIMATION_RESET_DELAY_MS);
-  //   return () => clearTimeout(timeoutId);
-  // }, []);
+  const skipAnimation = useRef<boolean>(true);
+  useEffect(() => {
+    const timeoutId = setTimeout(() => (skipAnimation.current = false), ANIMATION_RESET_DELAY_MS);
+    return () => clearTimeout(timeoutId);
+  }, []);
 
-  // const previousGlobalVariablesRef = useRef<GlobalVariables | undefined>(globalVariables);
+  const previousGlobalVariablesRef = useRef<GlobalVariables | undefined>(globalVariables);
 
-  // const [changedVariables, setChangedVariables] = useState<string[]>([]);
-  // useEffect(() => {
-  //   if (skipAnimation.current || isActiveElementEditable()) {
-  //     previousGlobalVariablesRef.current = globalVariables;
-  //     return;
-  //   }
-  //   const newChangedVariables = union(
-  //     Object.keys(globalVariables),
-  //     Object.keys(previousGlobalVariablesRef.current ?? {}),
-  //   ).filter((name) => {
-  //     const previousValue = previousGlobalVariablesRef.current?.[name];
-  //     return previousValue !== globalVariables[name];
-  //   });
+  const [changedVariables, setChangedVariables] = useState<string[]>([]);
+  useEffect(() => {
+    if (skipAnimation.current || isActiveElementEditable()) {
+      previousGlobalVariablesRef.current = globalVariables;
+      return;
+    }
+    const newChangedVariables = union(
+      Object.keys(globalVariables),
+      Object.keys(previousGlobalVariablesRef.current ?? {}),
+    ).filter((name) => {
+      const previousValue = previousGlobalVariablesRef.current?.[name];
+      return previousValue !== globalVariables[name];
+    });
 
-  //   setChangedVariables(newChangedVariables);
-  //   previousGlobalVariablesRef.current = globalVariables;
-  //   const timerId = setTimeout(() => setChangedVariables([]), ANIMATION_RESET_DELAY_MS);
-  //   return () => clearTimeout(timerId);
-  // }, [globalVariables, skipAnimation]);
+    setChangedVariables(newChangedVariables);
+    previousGlobalVariablesRef.current = globalVariables;
+    const timerId = setTimeout(() => setChangedVariables([]), ANIMATION_RESET_DELAY_MS);
+    return () => clearTimeout(timerId);
+  }, [globalVariables, skipAnimation]);
 
   return (
     <Stack gap={1} style={{ marginLeft: -16, marginRight: -16 }}>
@@ -279,11 +241,7 @@ function GlobalVariablesTable(): JSX.Element {
             <LinkedGlobalVariableRow key={`linked-${idx}`} name={name} />
           ))}
           {unlinked.map((name, idx) => (
-            <TableRow
-              key={`unlinked-${idx}`}
-              // skipAnimation={skipAnimation.current}
-              // animate={changedVariables.includes(name)}
-            >
+            <TableRow key={`unlinked-${idx}`} selected={changedVariables.includes(name)}>
               <TableCell data-test="global-variable-key">
                 <ValidatedResizingInput
                   value={name}
