@@ -7,6 +7,7 @@
 import "./extensions";
 import "./react";
 import "./fluentui";
+import "./immutable";
 import "./overrides";
 import "./styled-components";
 import "./web";
