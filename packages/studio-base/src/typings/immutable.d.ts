@@ -5,3 +5,5 @@
 declare module "@foxglove/studio-base" {
   export type Immutable<T> = import("ts-essentials").DeepReadonly<T>;
 }
+
+export {};

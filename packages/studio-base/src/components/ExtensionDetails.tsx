@@ -16,8 +16,8 @@ import {
 import { useCallback, useState } from "react";
 import { useToasts } from "react-toast-notifications";
 import { useAsync, useMountedState } from "react-use";
-import { DeepReadonly } from "ts-essentials";
 
+import { Immutable } from "@foxglove/studio-base";
 import { SidebarContent } from "@foxglove/studio-base/components/SidebarContent";
 import Stack from "@foxglove/studio-base/components/Stack";
 import TextContent from "@foxglove/studio-base/components/TextContent";
@@ -32,7 +32,7 @@ import isDesktopApp from "@foxglove/studio-base/util/isDesktopApp";
 
 type Props = {
   installed: boolean;
-  extension: DeepReadonly<ExtensionMarketplaceDetail>;
+  extension: Immutable<ExtensionMarketplaceDetail>;
   onClose: () => void;
 };
 
