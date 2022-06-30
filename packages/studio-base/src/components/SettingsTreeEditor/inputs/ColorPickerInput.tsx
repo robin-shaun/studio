@@ -5,25 +5,31 @@
 import { ColorPicker } from "@fluentui/react";
 import { TextField, styled as muiStyled, Popover } from "@mui/material";
 import { useCallback, MouseEvent, useState } from "react";
+import { CSSProperties } from "styled-components";
 import tinycolor from "tinycolor2";
 
 import { fonts } from "@foxglove/studio-base/util/sharedStyleConstants";
-
-import { ColorSwatch } from "./ColorSwatch";
 
 const StyledTextField = muiStyled(TextField)({
   ".MuiInputBase-formControl.MuiInputBase-root": {
     padding: 0,
   },
   ".MuiInputBase-input": {
-    fontFamily: fonts.MONOSPACE,
     alignItems: "center",
+    color: "white",
+    cursor: "pointer",
+    fontFamily: fonts.MONOSPACE,
+    mixBlendMode: "difference",
   },
 });
 
-const Root = muiStyled("div", { shouldForwardProp: (prop) => prop !== "disabled" })<{
+const Root = muiStyled("div", {
+  shouldForwardProp: (prop) => prop !== "backgroundColor" && prop !== "disabled",
+})<{
+  backgroundColor: CSSProperties["backgroundColor"];
   disabled: boolean;
-}>(({ disabled }) => ({
+}>(({ backgroundColor, disabled }) => ({
+  backgroundColor,
   position: "relative",
   pointerEvents: disabled ? "none" : "auto",
 }));
@@ -34,12 +40,11 @@ type ColorPickerInputProps = {
   value: undefined | string;
   onChange: (value: undefined | string) => void;
   placeholder?: string;
-  swatchOrientation?: "start" | "end";
   readOnly?: boolean;
 };
 
 export function ColorPickerInput(props: ColorPickerInputProps): JSX.Element {
-  const { disabled, onChange, readOnly, swatchOrientation = "start", value } = props;
+  const { disabled, onChange, readOnly, value } = props;
 
   const [anchorElement, setAnchorElement] = useState<undefined | HTMLDivElement>(undefined);
 
@@ -57,7 +62,7 @@ export function ColorPickerInput(props: ColorPickerInputProps): JSX.Element {
   const swatchColor = isValidColor ? tinycolor(value).toHex8String() : "#00000044";
 
   return (
-    <Root disabled={disabled === true || readOnly === true}>
+    <Root backgroundColor={swatchColor} disabled={disabled === true || readOnly === true}>
       <StyledTextField
         fullWidth
         disabled={disabled}
@@ -66,14 +71,9 @@ export function ColorPickerInput(props: ColorPickerInputProps): JSX.Element {
         size="small"
         value={value ?? ""}
         variant="filled"
+        onClick={handleClick}
         InputProps={{
-          readOnly,
-          startAdornment: swatchOrientation === "start" && (
-            <ColorSwatch color={swatchColor} onClick={handleClick} />
-          ),
-          endAdornment: swatchOrientation === "end" && (
-            <ColorSwatch color={swatchColor} onClick={handleClick} />
-          ),
+          readOnly: true,
         }}
       />
       <Popover

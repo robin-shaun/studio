@@ -611,6 +611,19 @@ const FilterSettings: SettingsTreeNodes = {
   },
 };
 
+const ColorSettings: SettingsTreeNodes = {
+  colors: {
+    fields: {
+      hex6: { label: "Hex 6", input: "rgb", value: "#ffaa00" },
+      hex8: { label: "Hex 8", input: "rgb", value: "#ffaa0088" },
+      rgb: { label: "RGB", input: "rgb", value: "rgb(255, 128, 0)" },
+      rgba: { label: "RGBA", input: "rgba", value: "rgba(0, 128, 255, 0.5)" },
+      rgbaBlack: { label: "RGBA Black", input: "rgba", value: "rgba(0, 0, 0, 1)" },
+      rgbaWhite: { label: "RGBA White", input: "rgba", value: "rgba(255, 255, 255, 1)" },
+    },
+  },
+};
+
 function updateSettingsTreeNodes(
   previous: SettingsTreeNodes,
   path: readonly string[],
@@ -792,3 +805,7 @@ Filter.play = () => {
     fireEvent.change(node, { target: { value: "matcha" } });
   }
 };
+
+export function Colors(): JSX.Element {
+  return <Wrapper nodes={ColorSettings} />;
+}
