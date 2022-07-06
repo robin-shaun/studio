@@ -26,6 +26,7 @@ import {
   PanelContextMenuItem,
 } from "@foxglove/studio-base/components/PanelContextMenu";
 import PanelToolbar from "@foxglove/studio-base/components/PanelToolbar";
+import { SettingsChangeNotificationDialog } from "@foxglove/studio-base/components/SettingsChangeNotificationDialog";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { usePanelSettingsTreeUpdate } from "@foxglove/studio-base/providers/PanelSettingsEditorContextProvider";
 import inScreenshotTests from "@foxglove/studio-base/stories/inScreenshotTests";
@@ -306,6 +307,7 @@ function ImageView(props: Props) {
         )}
       </Stack>
       <Toolbar pixelData={activePixelData} />
+      <SettingsChangeNotificationDialog panelType="ImagePanel" />
     </Stack>
   );
 }

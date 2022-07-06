@@ -19,6 +19,7 @@ import { useDebouncedCallback } from "use-debounce";
 
 import { toSec } from "@foxglove/rostime";
 import { PanelExtensionContext, MessageEvent, SettingsTreeAction } from "@foxglove/studio";
+import { SettingsChangeNotificationDialog } from "@foxglove/studio-base/components/SettingsChangeNotificationDialog";
 import Stack from "@foxglove/studio-base/components/Stack";
 import FilteredPointLayer, {
   POINT_MARKER_RADIUS,
@@ -606,6 +607,7 @@ function MapPanel(props: MapPanelProps): JSX.Element {
           visibility: center ? "visible" : "hidden",
         }}
       />
+      <SettingsChangeNotificationDialog panelType="MapPanel" />
     </Stack>
   );
 }

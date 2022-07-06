@@ -26,6 +26,7 @@ import {
   SettingsTreeNodes,
   Topic,
 } from "@foxglove/studio";
+import { SettingsChangeNotificationDialog } from "@foxglove/studio-base/components/SettingsChangeNotificationDialog";
 import useCleanup from "@foxglove/studio-base/hooks/useCleanup";
 import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 
@@ -441,6 +442,7 @@ export function ThreeDeeRender({ context }: { context: PanelExtensionContext }):
           <RendererOverlay addPanel={addPanel} enableStats={config.scene.enableStats ?? false} />
         </RendererContext.Provider>
       </div>
+      <SettingsChangeNotificationDialog panelType="New3D" />
     </ThemeProvider>
   );
 }
