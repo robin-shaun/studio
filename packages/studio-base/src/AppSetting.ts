@@ -30,6 +30,7 @@ export enum AppSetting {
   HIDE_SIGN_IN_PROMPT = "hideSignInPrompt",
   LAUNCH_PREFERENCE = "launchPreference",
   SHOW_OPEN_DIALOG_ON_STARTUP = "ui.open-dialog-startup",
+  SHOWN_PANEL_CHANGE_WARNINGS = "ui.shown-panel-change-warnings",
 
   // Dev only
   ENABLE_LAYOUT_DEBUGGING = "enableLayoutDebugging",

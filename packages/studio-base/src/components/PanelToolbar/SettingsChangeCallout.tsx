@@ -3,16 +3,15 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { Button, Tooltip, Typography } from "@mui/material";
-import { useState } from "react";
 
 import Stack from "@foxglove/studio-base/components/Stack";
 
 export default function SettingsChangeCallout(props: {
   disabled?: boolean;
   children: JSX.Element;
+  dismiss: () => void;
 }): JSX.Element {
-  const { children, disabled = false } = props;
-  const [open, setOpen] = useState<boolean>(!disabled);
+  const { children, disabled = false, dismiss } = props;
 
   if (disabled) {
     return children;
@@ -21,7 +20,7 @@ export default function SettingsChangeCallout(props: {
   return (
     <Tooltip
       arrow
-      open={open}
+      open
       title={
         <div>
           <Stack padding={0.5} gap={0.5}>
@@ -33,7 +32,7 @@ export default function SettingsChangeCallout(props: {
               open the settings sidebar.
             </Typography>
             <Stack direction="row" justifyContent="flex-end" paddingBottom={0.5}>
-              <Button onClick={() => setOpen(false)} size="small" color="info">
+              <Button onClick={dismiss} size="small" color="info">
                 Dismiss
               </Button>
             </Stack>

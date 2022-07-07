@@ -13,8 +13,10 @@
 
 import SettingsIcon from "@mui/icons-material/Settings";
 import { useCallback, useContext } from "react";
+import { useLocalStorage } from "react-use";
 
-import PanelContext, { usePanelContext } from "@foxglove/studio-base/components/PanelContext";
+import { AppSetting } from "@foxglove/studio-base/AppSetting";
+import PanelContext from "@foxglove/studio-base/components/PanelContext";
 import SettingsChangeCallout from "@foxglove/studio-base/components/PanelToolbar/SettingsChangeCallout";
 import ToolbarIconButton from "@foxglove/studio-base/components/PanelToolbar/ToolbarIconButton";
 import Stack from "@foxglove/studio-base/components/Stack";
@@ -35,6 +37,8 @@ type PanelToolbarControlsProps = {
   setMenuOpen: (_: boolean) => void;
 };
 
+const PanelTypesForChangeWarnings = ["3D", "map", "ImageViewPanel"];
+
 // Keep controls, which don't change often, in a pure component in order to avoid re-rendering the
 // whole PanelToolbar when only children change.
 export const PanelToolbarControls = React.memo(function PanelToolbarControls({
@@ -43,8 +47,12 @@ export const PanelToolbarControls = React.memo(function PanelToolbarControls({
   menuOpen,
   setMenuOpen,
 }: PanelToolbarControlsProps) {
-  const { title } = usePanelContext();
+  const [shownChangeWarnings, setShownChangeWarnings] = useLocalStorage<Record<string, boolean>>(
+    AppSetting.SHOWN_PANEL_CHANGE_WARNINGS,
+    {},
+  );
   const panelId = useContext(PanelContext)?.id;
+  const panelType = useContext(PanelContext)?.type;
 
   const { setSelectedPanelIds } = useSelectedPanels();
   const { openPanelSettings } = useWorkspace();
@@ -64,14 +72,23 @@ export const PanelToolbarControls = React.memo(function PanelToolbarControls({
     }
   }, [setSelectedPanelIds, openPanelSettings, panelId]);
 
-  const settingsHaveRecentlyChanged =
-    title === "3D" || title === "Image" || title === "Map" || title === "URDF Viewer";
+  const showRecentChangesTooltip =
+    panelType != undefined &&
+    PanelTypesForChangeWarnings.includes(panelType) &&
+    shownChangeWarnings != undefined &&
+    shownChangeWarnings[panelType] == undefined;
+
+  const dismissTooltip = useCallback(() => {
+    if (panelType) {
+      setShownChangeWarnings({ ...shownChangeWarnings, [panelType]: true });
+    }
+  }, [panelType, setShownChangeWarnings, shownChangeWarnings]);
 
   return (
     <Stack direction="row" alignItems="center" paddingLeft={1}>
       {additionalIcons}
       {hasSettings && (
-        <SettingsChangeCallout disabled={!settingsHaveRecentlyChanged}>
+        <SettingsChangeCallout disabled={!showRecentChangesTooltip} dismiss={dismissTooltip}>
           <ToolbarIconButton title="Settings" onClick={openSettings}>
             <SettingsIcon />
           </ToolbarIconButton>
