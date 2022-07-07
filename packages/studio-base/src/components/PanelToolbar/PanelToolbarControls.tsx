@@ -14,7 +14,8 @@
 import SettingsIcon from "@mui/icons-material/Settings";
 import { useCallback, useContext } from "react";
 
-import PanelContext from "@foxglove/studio-base/components/PanelContext";
+import PanelContext, { usePanelContext } from "@foxglove/studio-base/components/PanelContext";
+import SettingsChangeCallout from "@foxglove/studio-base/components/PanelToolbar/SettingsChangeCallout";
 import ToolbarIconButton from "@foxglove/studio-base/components/PanelToolbar/ToolbarIconButton";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useSelectedPanels } from "@foxglove/studio-base/context/CurrentLayoutContext";
@@ -42,7 +43,9 @@ export const PanelToolbarControls = React.memo(function PanelToolbarControls({
   menuOpen,
   setMenuOpen,
 }: PanelToolbarControlsProps) {
+  const { title } = usePanelContext();
   const panelId = useContext(PanelContext)?.id;
+
   const { setSelectedPanelIds } = useSelectedPanels();
   const { openPanelSettings } = useWorkspace();
 
@@ -61,13 +64,18 @@ export const PanelToolbarControls = React.memo(function PanelToolbarControls({
     }
   }, [setSelectedPanelIds, openPanelSettings, panelId]);
 
+  const settingsHaveRecentlyChanged =
+    title === "3D" || title === "Image" || title === "Map" || title === "URDF Viewer";
+
   return (
     <Stack direction="row" alignItems="center" paddingLeft={1}>
       {additionalIcons}
       {hasSettings && (
-        <ToolbarIconButton title="Settings" onClick={openSettings}>
-          <SettingsIcon />
-        </ToolbarIconButton>
+        <SettingsChangeCallout disabled={!settingsHaveRecentlyChanged}>
+          <ToolbarIconButton title="Settings" onClick={openSettings}>
+            <SettingsIcon />
+          </ToolbarIconButton>
+        </SettingsChangeCallout>
       )}
       <PanelActionsDropdown
         isOpen={menuOpen}
