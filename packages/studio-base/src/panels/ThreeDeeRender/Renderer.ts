@@ -278,7 +278,7 @@ export class Renderer extends EventEmitter<RendererEvents> {
 
     this.followFrameId = config.followTf;
 
-    const samples = msaaSamples(this.maxLod, this.gl.capabilities);
+    const samples = msaaSamples(this.gl.capabilities);
     const renderSize = this.gl.getDrawingBufferSize(tempVec2);
     this.aspect = renderSize.width / renderSize.height;
     log.debug(`Initialized ${renderSize.width}x${renderSize.height} renderer (${samples}x MSAA)`);
