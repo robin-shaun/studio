@@ -12,6 +12,7 @@
 //   You may not use this file except in compliance with the License.
 
 import SettingsIcon from "@mui/icons-material/Settings";
+import { difference } from "lodash";
 import { useCallback, useContext } from "react";
 import { useLocalStorage } from "react-use";
 
@@ -72,11 +73,12 @@ export const PanelToolbarControls = React.memo(function PanelToolbarControls({
     }
   }, [setSelectedPanelIds, openPanelSettings, panelId]);
 
-  const showRecentChangesTooltip =
-    panelType != undefined &&
-    PanelTypesForChangeWarnings.includes(panelType) &&
-    shownChangeWarnings != undefined &&
-    shownChangeWarnings[panelType] == undefined;
+  const unshownCallouts = difference(
+    PanelTypesForChangeWarnings,
+    Object.keys(shownChangeWarnings ?? {}),
+  );
+
+  const showRecentChangesTooltip = panelType === unshownCallouts[0];
 
   const dismissTooltip = useCallback(() => {
     if (panelType) {
