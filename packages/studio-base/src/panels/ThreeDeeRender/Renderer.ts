@@ -194,7 +194,7 @@ export class Renderer extends EventEmitter<RendererEvents> {
   labels = new Labels(this);
   markerPool = new MarkerPool(this);
 
-  private _prevResolution: THREE.Vector2 | undefined;
+  private _prevResolution = new THREE.Vector2();
 
   constructor(canvas: HTMLCanvasElement, config: RendererConfig) {
     super();
@@ -832,10 +832,10 @@ export class Renderer extends EventEmitter<RendererEvents> {
 
   private _updateResolution(): void {
     const resolution = this.input.canvasSize;
-    if (this._prevResolution?.equals(resolution) === true) {
+    if (this._prevResolution.equals(resolution)) {
       return;
     }
-    this._prevResolution = resolution;
+    this._prevResolution = resolution.clone();
 
     this.scene.traverse((object) => {
       if ((object as Partial<THREE.Mesh>).isMesh) {
