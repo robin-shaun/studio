@@ -12,6 +12,11 @@ module.exports = {
   core: {
     builder: "webpack5",
   },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  env: (config: any) => ({
+    ...config,
+    STORYBOOK_MODE: true,
+  }),
 
   // Carefully merge our main webpack config with the Storybook default config.
   // For the most part, our webpack config has already been designed to handle

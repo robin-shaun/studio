@@ -78,7 +78,8 @@ export const PanelToolbarControls = React.memo(function PanelToolbarControls({
     Object.keys(shownChangeWarnings ?? {}),
   );
 
-  const showRecentChangesTooltip = panelType === unshownCallouts[0];
+  const showRecentChangesTooltip =
+    panelType === unshownCallouts[0] && process.env.STORYBOOK_MODE == undefined;
 
   const dismissTooltip = useCallback(() => {
     if (panelType) {
