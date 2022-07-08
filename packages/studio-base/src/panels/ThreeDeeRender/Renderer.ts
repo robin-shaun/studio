@@ -835,7 +835,7 @@ export class Renderer extends EventEmitter<RendererEvents> {
     if (this._prevResolution.equals(resolution)) {
       return;
     }
-    this._prevResolution = resolution.clone();
+    this._prevResolution.copy(resolution);
 
     this.scene.traverse((object) => {
       if ((object as Partial<THREE.Mesh>).isMesh) {
