@@ -103,6 +103,7 @@ export function makeLineMaterial(marker: Marker, options: LineOptions): LineMate
     linewidth: lineWidth,
     transparent,
     depthWrite: !transparent,
+    resolution: options.resolution,
 
     stencilWrite: true,
     stencilRef: 0,
@@ -130,7 +131,7 @@ export function makeLinePickingMaterial(
     uniforms: {
       objectId: { value: [NaN, NaN, NaN, NaN] },
       linewidth: { value: lineWidth },
-      resolution: { value: new THREE.Vector2(1, 1) },
+      resolution: { value: options.resolution },
       dashOffset: { value: 0 },
       dashScale: { value: 1 },
       dashSize: { value: 1 },

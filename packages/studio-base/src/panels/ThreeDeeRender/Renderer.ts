@@ -838,17 +838,15 @@ export class Renderer extends EventEmitter<RendererEvents> {
     this._prevResolution.copy(resolution);
 
     this.scene.traverse((object) => {
-      if ((object as Partial<THREE.Mesh>).isMesh) {
+      if ((object as Partial<THREE.Mesh>).material) {
         const mesh = object as THREE.Mesh;
-        const material = mesh.material as THREE.Material;
+        const material = mesh.material as Partial<LineMaterial>;
 
         // Update render resolution uniforms
-        if (material instanceof LineMaterial) {
-          material.resolution = resolution;
-        } else if (
-          material instanceof THREE.ShaderMaterial &&
-          material.uniforms.resolution != undefined
-        ) {
+        if (material.resolution) {
+          material.resolution.copy(resolution);
+        }
+        if (material.uniforms?.resolution) {
           material.uniforms.resolution.value = resolution;
         }
       }
