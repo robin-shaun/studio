@@ -59,6 +59,7 @@ const useStyles = makeStyles((theme) => ({
     font: "inherit",
     ...theme.fonts.small,
     fontFeatureSettings: fonts.SANS_SERIF_FEATURE_SETTINGS,
+    zIndex: 0,
 
     // mosaic styling
     ".mosaic": {

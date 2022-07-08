@@ -20,14 +20,6 @@ html, body {
   box-sizing: inherit;
 }
 body {
-  background: ${({ theme }) => theme.semanticColors.bodyBackground};
-  color: ${({ theme }) => theme.semanticColors.bodyText};
-  font: inherit;
-  font-family: ${({ theme }) => theme.fonts.small.fontFamily};
-  font-feature-settings: ${({ theme }) => theme.fonts.small.fontFeatureSettings};
-  font-size: ${({ theme }) => theme.fonts.small.fontSize};
-  font-weight: ${({ theme }) => theme.fonts.small.fontWeight};
-
   // Prevent scroll "bouncing" since the app workspace is not scrollable. Allows individual
   // scrollable elements to be scrolled without the whole page moving (even if they don't
   // preventDefault on scroll events).
