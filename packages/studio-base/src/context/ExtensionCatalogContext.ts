@@ -5,14 +5,21 @@
 import { createContext } from "react";
 import { StoreApi, useStore } from "zustand";
 
-import { ExtensionPanelRegistration } from "@foxglove/studio";
+import { ExtensionPanelRegistration, ExtensionScriptRegistration } from "@foxglove/studio";
 import useGuaranteedContext from "@foxglove/studio-base/hooks/useGuaranteedContext";
 import { ExtensionInfo, ExtensionNamespace } from "@foxglove/studio-base/types/Extensions";
 
-export type RegisteredPanel = {
+type ExtensionResource = {
   extensionName: string;
   extensionNamespace?: ExtensionNamespace;
+};
+
+export type RegisteredPanel = ExtensionResource & {
   registration: ExtensionPanelRegistration;
+};
+
+export type RegisteredScript = ExtensionResource & {
+  registration: ExtensionScriptRegistration;
 };
 
 export type ExtensionCatalog = {
@@ -27,6 +34,7 @@ export type ExtensionCatalog = {
 
   installedExtensions: undefined | ExtensionInfo[];
   installedPanels: undefined | Record<string, RegisteredPanel>;
+  installedScripts: undefined | Record<string, RegisteredScript>;
 };
 
 export const ExtensionCatalogContext = createContext<undefined | StoreApi<ExtensionCatalog>>(

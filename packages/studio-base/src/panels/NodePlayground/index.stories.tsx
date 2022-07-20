@@ -304,6 +304,20 @@ storiesOf("panels/NodePlayground", module)
       </PanelSetup>
     );
   })
+  .add("sidebar open - extensions explorer", () => {
+    return (
+      <PanelSetup
+        fixture={{ ...fixture, userNodes }}
+        onMount={(el) => {
+          setTimeout(() => {
+            el.querySelectorAll<HTMLElement>("[data-test=extensions-explorer]")[0]!.click();
+          }, SIDEBAR_OPEN_CLICK_TIMEOUT);
+        }}
+      >
+        <NodePlayground />
+      </PanelSetup>
+    );
+  })
   .add("editor loading state", () => {
     const NeverLoad = () => {
       throw new Promise(() => {

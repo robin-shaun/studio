@@ -304,11 +304,36 @@ declare module "@foxglove/studio" {
     initPanel: (context: PanelExtensionContext) => void;
   };
 
+  export type ExtensionScriptRegistration = {
+    /**
+     * The unique id used to identify the script. Changing this will break layouts
+     * that use this script.
+     */
+    id: string;
+
+    /**
+     * A description of the script.
+     */
+    description: string;
+
+    /**
+     * The name displayed to the user in the User Scripts interface. This can be
+     * changed without breaking layouts.
+     */
+    displayName: string;
+
+    /**
+     * The source code of the extension script.
+     */
+    source: string;
+  };
+
   export interface ExtensionContext {
     /** The current _mode_ of the application. */
     readonly mode: "production" | "development" | "test";
 
     registerPanel(params: ExtensionPanelRegistration): void;
+    registerScript(params: ExtensionScriptRegistration): void;
   }
 
   export interface ExtensionActivate {

@@ -14,6 +14,7 @@
 import CloseIcon from "@mui/icons-material/Close";
 import ConstructionOutlinedIcon from "@mui/icons-material/ConstructionOutlined";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import ExtensionIcon from "@mui/icons-material/Extension";
 import TemplateIcon from "@mui/icons-material/PhotoFilter";
 import NoteIcon from "@mui/icons-material/StickyNote2Outlined";
 import {
@@ -29,11 +30,13 @@ import {
   CardHeader,
   Typography,
   Divider,
+  CircularProgress,
 } from "@mui/material";
 import * as monacoApi from "monaco-editor/esm/vs/editor/editor.api";
 import { ReactNode, useCallback, useMemo } from "react";
 
 import Stack from "@foxglove/studio-base/components/Stack";
+import { useExtensionCatalog } from "@foxglove/studio-base/context/ExtensionCatalogContext";
 import { Explorer } from "@foxglove/studio-base/panels/NodePlayground";
 import { Script } from "@foxglove/studio-base/panels/NodePlayground/script";
 import { getNodeProjectConfig } from "@foxglove/studio-base/players/UserNodePlayer/nodeTransformerWorker/typescript/projectConfig";
@@ -153,6 +156,9 @@ const Sidebar = ({
   const nodesSelected = explorer === "nodes";
   const utilsSelected = explorer === "utils";
   const templatesSelected = explorer === "templates";
+  const extensionsSelected = explorer === "extensions";
+
+  const extensions = useExtensionCatalog((state) => state.installedScripts);
 
   const gotoUtils = useCallback(
     (filePath: string) => {
@@ -184,8 +190,9 @@ const Sidebar = ({
         return "templates";
       case "utils":
         return "utils";
+      case "extensions":
+        return "extensions";
     }
-    return false;
   }, [explorer]);
 
   const explorers = useMemo(
@@ -261,10 +268,43 @@ const Sidebar = ({
           </List>
         </Stack>
       ),
+      extensions: (
+        <Stack flex="auto">
+          <SidebarHeader
+            title="Extensions"
+            subheader="Create nodes from these extensions, click an extension to create a new node."
+            collapse={() => updateExplorer(undefined)}
+          />
+          <List dense>
+            {extensions &&
+              Object.values(extensions).length > 0 &&
+              Object.values(extensions).map((extension) => (
+                <ListItem
+                  disablePadding
+                  key={extension.registration.id}
+                  onClick={() => addNewNode(extension.registration.source)}
+                >
+                  <ListItemButton>
+                    <ListItemText
+                      primary={extension.registration.displayName}
+                      primaryTypographyProps={{ variant: "body1" }}
+                      secondary={extension.registration.description}
+                    />
+                  </ListItemButton>
+                </ListItem>
+              ))}
+            {extensions && Object.values(extensions).length === 0 && (
+              <ListItem>No extensions installed.</ListItem>
+            )}
+          </List>
+          {!extensions && <CircularProgress />}
+        </Stack>
+      ),
     }),
     [
       addNewNode,
       deleteNode,
+      extensions,
       gotoUtils,
       script,
       selectNode,
@@ -301,6 +341,14 @@ const Sidebar = ({
             icon={<TemplateIcon fontSize="large" />}
             data-test="templates-explorer"
             onClick={() => updateExplorer(templatesSelected ? undefined : "templates")}
+          />{" "}
+          <STab
+            disableRipple
+            value="extensions"
+            title="Extensions"
+            icon={<ExtensionIcon fontSize="large" />}
+            data-test="extensions-explorer"
+            onClick={() => updateExplorer(extensionsSelected ? undefined : "extensions")}
           />
         </Tabs>
         {explorer != undefined && (

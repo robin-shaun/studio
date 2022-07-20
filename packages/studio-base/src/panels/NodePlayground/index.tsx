@@ -115,7 +115,7 @@ const StyledInput = muiStyled(Input)(({ theme }) => ({
   },
 }));
 
-export type Explorer = undefined | "nodes" | "utils" | "templates";
+export type Explorer = undefined | "nodes" | "utils" | "templates" | "extensions";
 
 function buildSettingsTree(config: Config): SettingsTreeNodes {
   return {

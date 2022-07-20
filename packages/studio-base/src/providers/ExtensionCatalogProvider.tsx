@@ -12,6 +12,7 @@ import {
   ExtensionCatalog,
   ExtensionCatalogContext,
   RegisteredPanel,
+  RegisteredScript,
   useExtensionCatalog,
 } from "@foxglove/studio-base/context/ExtensionCatalogContext";
 import { ExtensionLoader } from "@foxglove/studio-base/services/ExtensionLoader";
@@ -19,13 +20,14 @@ import { ExtensionInfo, ExtensionNamespace } from "@foxglove/studio-base/types/E
 
 const log = Logger.getLogger(__filename);
 
-async function registerExtensionPanels(
+async function registerExtensionResources(
   extensions: ExtensionInfo[],
   loadExtension: ExtensionLoader["loadExtension"],
-): Promise<Record<string, RegisteredPanel>> {
+): Promise<{ panels: Record<string, RegisteredPanel>; scripts: Record<string, RegisteredScript> }> {
   // registered panels stored by their fully qualified id
   // the fully qualified id is the extension name + panel name
   const panels: Record<string, RegisteredPanel> = {};
+  const scripts: Record<string, RegisteredScript> = {};
 
   for (const extension of extensions) {
     log.debug(`Activating extension ${extension.qualifiedName}`);
@@ -45,7 +47,7 @@ async function registerExtensionPanels(
     const ctx: ExtensionContext = {
       mode: extensionMode,
 
-      registerPanel(params) {
+      registerPanel: (params) => {
         log.debug(`Extension ${extension.qualifiedName} registering panel: ${params.name}`);
 
         const fullId = `${extension.qualifiedName}.${params.name}`;
@@ -55,6 +57,22 @@ async function registerExtensionPanels(
         }
 
         panels[fullId] = {
+          extensionName: extension.qualifiedName,
+          extensionNamespace: extension.namespace,
+          registration: params,
+        };
+      },
+
+      registerScript: (params) => {
+        log.debug(`Extension ${extension.qualifiedName} registering script: ${params.id}`);
+
+        const fullId = `${extension.qualifiedName}.${params.id}`;
+        if (scripts[fullId]) {
+          log.warn(`Script ${fullId} is already registered`);
+          return;
+        }
+
+        scripts[fullId] = {
           extensionName: extension.qualifiedName,
           extensionNamespace: extension.namespace,
           registration: params,
@@ -78,7 +96,7 @@ async function registerExtensionPanels(
     }
   }
 
-  return panels;
+  return { panels, scripts };
 }
 
 export function createExtensionRegistryStore(
@@ -113,22 +131,23 @@ export function createExtensionRegistryStore(
     },
 
     refreshExtensions: async () => {
-      const extensionList = (
-        await Promise.all(loaders.map(async (loader) => await loader.getExtensions()))
-      )
-        .flat()
-        .sort();
+      const extensions = await Promise.all(
+        loaders.map(async (loader) => await loader.getExtensions()),
+      );
+
+      const extensionList = extensions.flat().sort();
       log.debug(`Found ${extensionList.length} extension(s)`);
-      const panels = await registerExtensionPanels(
+      const { panels, scripts } = await registerExtensionResources(
         extensionList,
         async (id: string) => await get().loadExtension(id),
       );
-      set({ installedExtensions: extensionList, installedPanels: panels });
+
+      set({
+        installedExtensions: extensionList,
+        installedPanels: panels,
+        installedScripts: scripts,
+      });
     },
-
-    installedExtensions: undefined,
-
-    installedPanels: undefined,
 
     uninstallExtension: async (namespace: ExtensionNamespace, id: string) => {
       const namespacedLoader = loaders.find((loader) => loader.namespace === namespace);
@@ -138,6 +157,10 @@ export function createExtensionRegistryStore(
       await namespacedLoader.uninstallExtension(id);
       await get().refreshExtensions();
     },
+
+    installedExtensions: undefined,
+    installedPanels: undefined,
+    installedScripts: undefined,
   }));
 }
 
