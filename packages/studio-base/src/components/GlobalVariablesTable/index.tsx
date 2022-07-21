@@ -11,8 +11,8 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { MoreVert } from "@mui/icons-material";
 import CloseIcon from "@mui/icons-material/Close";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
 import {
   Button,
   Chip,
@@ -28,10 +28,10 @@ import {
   TableRow,
   Tooltip,
   Typography,
-  styled as muiStyled,
 } from "@mui/material";
 import { partition, pick, union, without } from "lodash";
 import { useMemo, useCallback, useRef, useEffect, useState } from "react";
+import { makeStyles } from "tss-react/mui";
 
 import Stack from "@foxglove/studio-base/components/Stack";
 import { JSONInput } from "@foxglove/studio-base/components/input/JSONInput";
@@ -44,20 +44,22 @@ import useLinkedGlobalVariables from "@foxglove/studio-base/panels/ThreeDimensio
 // The minimum amount of time to wait between showing the global variable update animation again
 export const ANIMATION_RESET_DELAY_MS = 3000;
 
-const StyledInputWrapper = muiStyled("div")(({ theme }) => ({
-  input: {
-    marginLeft: theme.spacing(-1),
-    font: "inherit",
-    width: "100%",
-    appearance: "none",
-    backgroundColor: "transparent",
-    color: theme.palette.text.primary,
-    border: "none",
-    padding: theme.spacing(0.75, 1),
-    borderRadius: theme.shape.borderRadius,
+const useStyles = makeStyles()((theme) => ({
+  inputWrapper: {
+    input: {
+      marginLeft: theme.spacing(-1),
+      font: "inherit",
+      width: "100%",
+      appearance: "none",
+      backgroundColor: "transparent",
+      color: theme.palette.text.primary,
+      border: "none",
+      padding: theme.spacing(0.75, 1),
+      borderRadius: theme.shape.borderRadius,
 
-    "&:hover, &:focus, &:focus-within": {
-      outline: "none",
+      "&:hover, &:focus, &:focus-within": {
+        outline: "none",
+      },
     },
   },
 }));
@@ -190,7 +192,7 @@ function LinkedGlobalVariableRow({ name }: { name: string }): JSX.Element {
           aria-expanded={open ? "true" : undefined}
           onClick={handleClick}
         >
-          <MoreVert fontSize="small" />
+          <MoreVertIcon fontSize="small" />
         </IconButton>
         <Menu
           id="linked-topics-menu"
@@ -223,6 +225,7 @@ function LinkedGlobalVariableRow({ name }: { name: string }): JSX.Element {
 }
 
 function GlobalVariablesTable(): JSX.Element {
+  const { classes } = useStyles();
   const { globalVariables, setGlobalVariables, overwriteGlobalVariables } = useGlobalVariables();
   const { linkedGlobalVariablesByName } = useLinkedGlobalVariables();
   const globalVariableNames = useMemo(() => Object.keys(globalVariables), [globalVariables]);
@@ -279,7 +282,7 @@ function GlobalVariablesTable(): JSX.Element {
             {unlinked.map((name, idx) => (
               <TableRow key={`unlinked-${idx}`} hover selected={changedVariables.includes(name)}>
                 <TableCell data-test="global-variable-key" style={{ width: 1 }}>
-                  <StyledInputWrapper>
+                  <div className={classes.inputWrapper}>
                     <ValidatedResizingInput
                       value={name}
                       dataTest={`global-variable-key-input-${name}`}
@@ -294,7 +297,7 @@ function GlobalVariablesTable(): JSX.Element {
                       }
                       invalidInputs={without(globalVariableNames, name).concat("")}
                     />
-                  </StyledInputWrapper>
+                  </div>
                 </TableCell>
                 <TableCell
                   padding="none"
