@@ -11,12 +11,15 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
+import CheckIcon from "@mui/icons-material/Check";
+import EditIcon from "@mui/icons-material/Edit";
 import FullscreenExitIcon from "@mui/icons-material/FullscreenExit";
-import { styled as muiStyled, Typography } from "@mui/material";
-import { useContext, useState, useMemo, CSSProperties } from "react";
+import { IconButton, InputBase, styled as muiStyled, Typography } from "@mui/material";
+import { useContext, useState, useMemo, CSSProperties, useCallback } from "react";
 
 import PanelContext from "@foxglove/studio-base/components/PanelContext";
 import ToolbarIconButton from "@foxglove/studio-base/components/PanelToolbar/ToolbarIconButton";
+import Stack from "@foxglove/studio-base/components/Stack";
 
 import { PanelToolbarControls } from "./PanelToolbarControls";
 
@@ -41,7 +44,7 @@ const PanelToolbarRoot = muiStyled("div", {
     cursor: enableDrag ? "grab" : "auto",
     flex: "0 0 auto",
     alignItems: "center",
-    justifyContent: "flex-end",
+    justifyContent: "flex-start",
     padding: theme.spacing(0.25, 0.75),
     display: "flex",
     minHeight: PANEL_TOOLBAR_MIN_HEIGHT,
@@ -63,6 +66,7 @@ export default React.memo<Props>(function PanelToolbar({
 }: Props) {
   const { isFullscreen, exitFullscreen } = useContext(PanelContext) ?? {};
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   const panelContext = useContext(PanelContext);
 
@@ -71,6 +75,17 @@ export default React.memo<Props>(function PanelToolbar({
   const additionalIconsWithHelp = useMemo(() => {
     return (
       <>
+        <ToolbarIconButton
+          title="Edit title"
+          data-node-function="edit-label"
+          // color="primary"
+          onClick={(event) => {
+            event.stopPropagation();
+            setIsEditing((editing) => !editing);
+          }}
+        >
+          {isEditing ? <CheckIcon fontSize="small" /> : <EditIcon fontSize="small" />}
+        </ToolbarIconButton>
         {additionalIcons}
         {isFullscreen === true && (
           <ToolbarIconButton
@@ -83,7 +98,22 @@ export default React.memo<Props>(function PanelToolbar({
         )}
       </>
     );
-  }, [additionalIcons, isFullscreen, exitFullscreen]);
+  }, [isEditing, additionalIcons, isFullscreen, exitFullscreen]);
+
+  const updateTitle = useCallback(
+    (value: string) => {
+      panelContext?.saveConfig({ title: value });
+    },
+    [panelContext],
+  );
+
+  const onTitleKeyDown = useCallback((event: React.KeyboardEvent) => {
+    if (event.key === "Enter" || event.key === "Escape") {
+      setIsEditing(false);
+    }
+  }, []);
+
+  const title = String(panelContext?.config.title ?? panelContext?.title);
 
   return (
     <PanelToolbarRoot
@@ -92,12 +122,25 @@ export default React.memo<Props>(function PanelToolbar({
       enableDrag={panelContext?.connectToolbarDragHandle != undefined}
       ref={isUnknownPanel ? undefined : panelContext?.connectToolbarDragHandle}
     >
-      {children ??
-        (panelContext != undefined && (
-          <Typography noWrap variant="body2" color="text.secondary" flex="auto">
-            {panelContext.title}
-          </Typography>
-        ))}
+      {children ?? (
+        <Stack alignItems="center" direction="row" flex="1">
+          {panelContext != undefined && isEditing ? (
+            <InputBase
+              autoFocus
+              fullWidth
+              onChange={(event) => updateTitle(event.currentTarget.value)}
+              value={title}
+              onKeyDown={onTitleKeyDown}
+              onFocus={(event) => event.target.select()}
+              style={{ font: "inherit" }}
+            />
+          ) : (
+            <Typography noWrap={true} flex="auto" variant="subtitle2" color="text.primary">
+              {title}
+            </Typography>
+          )}
+        </Stack>
+      )}
       <PanelToolbarControls
         additionalIcons={additionalIconsWithHelp}
         isUnknownPanel={!!isUnknownPanel}
