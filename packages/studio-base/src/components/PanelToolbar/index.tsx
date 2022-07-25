@@ -14,7 +14,7 @@
 import CheckIcon from "@mui/icons-material/Check";
 import EditIcon from "@mui/icons-material/Edit";
 import FullscreenExitIcon from "@mui/icons-material/FullscreenExit";
-import { IconButton, InputBase, styled as muiStyled, Typography } from "@mui/material";
+import { InputBase, styled as muiStyled, Typography } from "@mui/material";
 import { useContext, useState, useMemo, CSSProperties, useCallback } from "react";
 
 import PanelContext from "@foxglove/studio-base/components/PanelContext";
