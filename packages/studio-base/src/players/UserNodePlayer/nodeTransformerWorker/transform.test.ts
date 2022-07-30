@@ -34,6 +34,7 @@ import {
   Sources,
   NodeData,
 } from "@foxglove/studio-base/players/UserNodePlayer/types";
+import { Topic } from "@foxglove/studio-base/players/types";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 import { basicDatatypes } from "@foxglove/studio-base/util/basicDatatypes";
 import { DEFAULT_STUDIO_NODE_PREFIX } from "@foxglove/studio-base/util/globalConstants";
@@ -399,6 +400,7 @@ describe("pipeline", () => {
       sourceCode: string;
       description: string;
       datatypes?: RosDatatypes;
+      topics?: Topic[];
       error?: typeof ErrorCodes.DatatypeExtraction[keyof typeof ErrorCodes.DatatypeExtraction];
       outputDatatype?: string;
       only?: boolean;
@@ -1225,6 +1227,26 @@ describe("pipeline", () => {
         datatypes: basicDatatypes,
         outputDatatype: "std_msgs/ColorRGBA",
       },
+      {
+        description: "Should support output types with generics",
+        sourceCode: `
+          import { Input } from "./types";
+
+          type Msg<T> = {
+            value: T;
+          }
+
+          export const inputs = [];
+          export const output = "${DEFAULT_STUDIO_NODE_PREFIX}";
+
+          const publisher = (msgEvent: any): Msg<string> => {
+            return { value: "foobar" };
+          };
+
+          export default publisher;`,
+        datatypes: basicDatatypes,
+        outputDatatype: "/studio_script/main",
+      },
       /*
       ERRORS
       */
@@ -1574,28 +1596,35 @@ describe("pipeline", () => {
       filteredTestCases = filteredTestCases.filter(({ skip }) =>
         typeof skip === "boolean" ? !skip : true,
       );
-      filteredTestCases.forEach(
-        ({ description, sourceCode, datatypes = new Map(), error, outputDatatype, rosLib }) => {
-          it(`${error != undefined ? "Expected Error: " : ""}${description}`, () => {
-            const typesLib = generateTypesLib({ topics: [], datatypes });
-            const inputNodeData: NodeData = {
-              ...baseNodeData,
-              datatypes,
-              sourceCode,
-              typesLib,
-              ...(rosLib != undefined ? { rosLib } : {}),
-            };
-            const nodeData = extract(inputNodeData, []);
-            if (error == undefined) {
-              expect(nodeData.diagnostics).toEqual([]);
-              expect(nodeData.outputDatatype).toEqual(outputDatatype ?? nodeData.name);
-              expect(nodeData.datatypes).toEqual(datatypes);
-            } else {
-              expect(nodeData.diagnostics.map(({ code }) => code)).toEqual([error]);
-            }
-          });
-        },
-      );
+      for (const testCase of filteredTestCases) {
+        const {
+          description,
+          sourceCode,
+          datatypes = new Map(),
+          error,
+          outputDatatype,
+          rosLib,
+          topics,
+        } = testCase;
+        it(`${error != undefined ? "Expected Error: " : ""}${description}`, () => {
+          const typesLib = generateTypesLib({ topics: topics ?? [], datatypes });
+          const inputNodeData: NodeData = {
+            ...baseNodeData,
+            datatypes,
+            sourceCode,
+            typesLib,
+            ...(rosLib != undefined ? { rosLib } : {}),
+          };
+          const nodeData = extract(inputNodeData, []);
+          if (error == undefined) {
+            expect(nodeData.diagnostics).toEqual([]);
+            expect(nodeData.outputDatatype).toEqual(outputDatatype ?? nodeData.name);
+            expect(nodeData.datatypes).toEqual(datatypes);
+          } else {
+            expect(nodeData.diagnostics.map(({ code }) => code)).toEqual([error]);
+          }
+        });
+      }
     });
   });
 });

@@ -444,8 +444,9 @@ export const constructDatatypes = (
           | undefined;
 
         if (typeParam) {
-          if (typeMap[typeParam.name.escapedText.toString()]) {
-            let next = typeMap[typeParam.name.escapedText.toString()];
+          const str = typeParam.name.escapedText.toString();
+          if (typeMap[str]) {
+            let next = typeMap[str];
             while (next?.parent) {
               next = next.parent;
             }
@@ -567,6 +568,7 @@ export const constructDatatypes = (
         code: ErrorCodes.DatatypeExtraction.INVALID_PROPERTY,
       });
     }
+
     return getRosMsgField(
       member.name.getText(),
       member.type,
