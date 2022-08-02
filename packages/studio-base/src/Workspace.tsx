@@ -498,6 +498,7 @@ export default function Workspace(props: WorkspaceProps): JSX.Element {
   const workspaceActions = useMemo(
     () => ({
       panelSettingsOpen: selectedSidebarItem === "panel-settings",
+      closePanelSettings: () => setSelectedSidebarItem(undefined),
       openPanelSettings: () => setSelectedSidebarItem("panel-settings"),
       openHelp: () => setSelectedSidebarItem("help"),
       openAccountSettings: () => supportsAccountSettings && setSelectedSidebarItem("account"),

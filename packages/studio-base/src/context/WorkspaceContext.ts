@@ -6,6 +6,9 @@ import { createContext, useContext } from "react";
 
 export const WorkspaceContext = createContext({
   panelSettingsOpen: false,
+  closePanelSettings: (): void => {
+    throw new Error("Must be in a WorkspaceContext.Provider to close panel settings");
+  },
   openPanelSettings: (): void => {
     throw new Error("Must be in a WorkspaceContext.Provider to open panel settings");
   },
@@ -23,6 +26,7 @@ WorkspaceContext.displayName = "WorkspaceContext";
 
 export function useWorkspace(): {
   panelSettingsOpen: boolean;
+  closePanelSettings: () => void;
   openPanelSettings: () => void;
   openHelp: () => void;
   openAccountSettings: () => void;

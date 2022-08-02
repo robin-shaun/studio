@@ -43,8 +43,8 @@ export const PanelToolbarControls = React.memo(function PanelToolbarControls({
   setMenuOpen,
 }: PanelToolbarControlsProps) {
   const panelId = useContext(PanelContext)?.id;
-  const { setSelectedPanelIds } = useSelectedPanels();
-  const { openPanelSettings } = useWorkspace();
+  const { selectedPanelIds, setSelectedPanelIds } = useSelectedPanels();
+  const { closePanelSettings, openPanelSettings } = useWorkspace();
 
   const hasSettingsSelector = useCallback(
     (store: PanelSettingsEditorStore) =>
@@ -55,11 +55,17 @@ export const PanelToolbarControls = React.memo(function PanelToolbarControls({
   const hasSettings = usePanelSettingsEditorStore(hasSettingsSelector);
 
   const openSettings = useCallback(() => {
-    if (panelId) {
+    if (!panelId) {
+      return;
+    }
+
+    if (selectedPanelIds.includes(panelId)) {
+      closePanelSettings();
+    } else {
       setSelectedPanelIds([panelId]);
       openPanelSettings();
     }
-  }, [setSelectedPanelIds, openPanelSettings, panelId]);
+  }, [closePanelSettings, openPanelSettings, panelId, selectedPanelIds, setSelectedPanelIds]);
 
   return (
     <Stack direction="row" alignItems="center" paddingLeft={1}>
