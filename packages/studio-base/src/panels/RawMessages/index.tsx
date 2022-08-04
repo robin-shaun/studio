@@ -271,7 +271,7 @@ function RawMessages(props: Props) {
       // sample output: Int8Array(331776) [-4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, -4, ...]
       let arrLabel = "";
       if (ArrayBuffer.isView(itemValue)) {
-        const array = itemValue as Uint8Array;
+        const array = Array.isArray(itemValue) ? itemValue : new Uint8Array(itemValue.buffer);
         const itemPart = array.slice(0, DATA_ARRAY_PREVIEW_LIMIT).join(", ");
         const length = array.length;
         arrLabel = `(${length}) [${itemPart}${length >= DATA_ARRAY_PREVIEW_LIMIT ? ", ..." : ""}] `;

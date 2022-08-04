@@ -63,6 +63,7 @@ export const fixture = {
         receiveTime: { sec: 122, nsec: 456789011 },
         message: {
           some_array: ["a", "b", "c"],
+          some_data_view: new DataView(new ArrayBuffer(10)),
           some_deleted_key: "GONE",
           some_id_example_2: { some_id: 0 },
         },
