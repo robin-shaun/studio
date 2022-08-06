@@ -15,7 +15,6 @@
 import { act, renderHook } from "@testing-library/react-hooks";
 import React, { PropsWithChildren } from "react";
 
-import { MessageDataItemsByPath } from "@foxglove/studio-base/components/MessagePathSyntax/useCachedGetMessagePathDataItems";
 import useMessagesByPath from "@foxglove/studio-base/components/MessagePathSyntax/useMessagesByPath";
 import MockMessagePipelineProvider from "@foxglove/studio-base/components/MessagePipeline/MockMessagePipelineProvider";
 import useGlobalVariables, {

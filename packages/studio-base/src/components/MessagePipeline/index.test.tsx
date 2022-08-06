@@ -37,11 +37,6 @@ import { MAX_PROMISE_TIMEOUT_TIME_MS } from "./pauseFrameForPromise";
 
 jest.setTimeout(MAX_PROMISE_TIMEOUT_TIME_MS * 3);
 
-type WrapperProps = {
-  player?: Player;
-  globalVariables?: GlobalVariables;
-};
-
 // We require two state updates for each player emit() to take effect, because we  React 18 / @testing-library/react,
 async function doubleAct(fn: () => Promise<void>) {
   let promise: Promise<void> | undefined;
@@ -49,29 +44,35 @@ async function doubleAct(fn: () => Promise<void>) {
   await act(async () => await promise);
 }
 
-function makeTestHook(props: WrapperProps) {
+function makeTestHook({
+  player,
+  globalVariables,
+}: {
+  player?: Player;
+  globalVariables?: GlobalVariables;
+}) {
   const all: MessagePipelineContext[] = [];
-  function Hook(_props: WrapperProps) {
+  function Hook() {
     const value = useMessagePipeline(useCallback((ctx) => ctx, []));
     all.push(value);
     return value;
   }
-  let currentPlayer = props.player;
-  function Wrapper({ children }: PropsWithChildren<WrapperProps>) {
+  let currentPlayer = player;
+  function Wrapper({ children }: PropsWithChildren<unknown>) {
     const [config] = useState(() => makeMockAppConfiguration());
     return (
       <AppConfigurationContext.Provider value={config}>
         <MessagePipelineProvider
           player={currentPlayer}
-          globalVariables={props.globalVariables ?? EMPTY_GLOBAL_VARIABLES}
+          globalVariables={globalVariables ?? EMPTY_GLOBAL_VARIABLES}
         >
           {children}
         </MessagePipelineProvider>
       </AppConfigurationContext.Provider>
     );
   }
-  function setPlayer(player: Player) {
-    currentPlayer = player;
+  function setPlayer(newPlayer: Player) {
+    currentPlayer = newPlayer;
   }
 
   return { Hook, Wrapper, all, setPlayer };
