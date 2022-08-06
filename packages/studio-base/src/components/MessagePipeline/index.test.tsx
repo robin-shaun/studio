@@ -14,12 +14,14 @@
 
 /* eslint-disable jest/no-conditional-expect */
 
-import { renderHook, RenderResult } from "@testing-library/react-hooks/dom";
+import { renderHook, act } from "@testing-library/react-hooks";
 import { PropsWithChildren, useCallback, useState } from "react";
-import { act } from "react-dom/test-utils";
 
 import AppConfigurationContext from "@foxglove/studio-base/context/AppConfigurationContext";
-import { GlobalVariables } from "@foxglove/studio-base/hooks/useGlobalVariables";
+import {
+  EMPTY_GLOBAL_VARIABLES,
+  GlobalVariables,
+} from "@foxglove/studio-base/hooks/useGlobalVariables";
 import {
   Player,
   PlayerCapabilities,
@@ -40,25 +42,46 @@ type WrapperProps = {
   globalVariables?: GlobalVariables;
 };
 
-function Hook(_props: WrapperProps) {
-  return useMessagePipeline(useCallback((value) => value, []));
+// We require two state updates for each player emit() to take effect, because we  React 18 / @testing-library/react,
+async function doubleAct(fn: () => Promise<void>) {
+  let promise: Promise<void> | undefined;
+  act(() => void (promise = fn()));
+  await act(async () => await promise);
 }
 
-function Wrapper({ children, player, globalVariables = {} }: PropsWithChildren<WrapperProps>) {
-  const [config] = useState(() => makeMockAppConfiguration());
-  return (
-    <AppConfigurationContext.Provider value={config}>
-      <MessagePipelineProvider player={player} globalVariables={globalVariables}>
-        {children}
-      </MessagePipelineProvider>
-    </AppConfigurationContext.Provider>
-  );
+function makeTestHook(props: WrapperProps) {
+  const all: MessagePipelineContext[] = [];
+  function Hook(_props: WrapperProps) {
+    const value = useMessagePipeline(useCallback((ctx) => ctx, []));
+    all.push(value);
+    return value;
+  }
+  let currentPlayer = props.player;
+  function Wrapper({ children }: PropsWithChildren<WrapperProps>) {
+    const [config] = useState(() => makeMockAppConfiguration());
+    return (
+      <AppConfigurationContext.Provider value={config}>
+        <MessagePipelineProvider
+          player={currentPlayer}
+          globalVariables={props.globalVariables ?? EMPTY_GLOBAL_VARIABLES}
+        >
+          {children}
+        </MessagePipelineProvider>
+      </AppConfigurationContext.Provider>
+    );
+  }
+  function setPlayer(player: Player) {
+    currentPlayer = player;
+  }
+
+  return { Hook, Wrapper, all, setPlayer };
 }
 
 describe("MessagePipelineProvider/useMessagePipeline", () => {
   it("returns empty data when no player is given", () => {
-    const { result } = renderHook(Hook, { wrapper: Wrapper });
-    expect(result.all).toEqual([
+    const { Hook, Wrapper, all } = makeTestHook({});
+    renderHook(Hook, { wrapper: Wrapper });
+    expect(all).toEqual([
       {
         playerState: {
           activeData: undefined,
@@ -89,13 +112,11 @@ describe("MessagePipelineProvider/useMessagePipeline", () => {
 
   it("updates when the player emits a new state", async () => {
     const player = new FakePlayer();
-    const { result } = renderHook(Hook, {
-      wrapper: Wrapper,
-      initialProps: { player },
-    });
+    const { Hook, Wrapper, all } = makeTestHook({ player });
+    renderHook(Hook, { wrapper: Wrapper });
 
-    await act(async () => await player.emit());
-    expect(result.all).toEqual([
+    await doubleAct(async () => await player.emit());
+    expect(all).toEqual([
       expect.objectContaining({
         playerState: {
           activeData: undefined,
@@ -119,9 +140,9 @@ describe("MessagePipelineProvider/useMessagePipeline", () => {
 
   it("throws an error when the player emits before the previous emit has been resolved", async () => {
     const player = new FakePlayer();
+    const { Hook, Wrapper } = makeTestHook({ player });
     renderHook(Hook, {
       wrapper: Wrapper,
-      initialProps: { player },
     });
     act(() => {
       void player.emit();
@@ -133,9 +154,9 @@ describe("MessagePipelineProvider/useMessagePipeline", () => {
 
   it("sets subscriptions", async () => {
     const player = new FakePlayer();
+    const { Hook, Wrapper } = makeTestHook({ player });
     const { result } = renderHook(Hook, {
       wrapper: Wrapper,
-      initialProps: { player },
     });
 
     act(() => {
@@ -152,7 +173,7 @@ describe("MessagePipelineProvider/useMessagePipeline", () => {
     ]);
     const lastSubscriptions = result.current.subscriptions;
     // cause the player to emit a frame outside the render loop to trigger another render
-    await act(async () => await player.emit());
+    await doubleAct(async () => await player.emit());
     // make sure subscriptions are reference equal when they don't change
     expect(result.current.subscriptions).toBe(lastSubscriptions);
   });
@@ -162,11 +183,11 @@ describe("MessagePipelineProvider/useMessagePipeline", () => {
   // send again itself.
   it("emits the last message on a topic for new subscriptions", async () => {
     const player = new FakePlayer();
+    const { Hook, Wrapper } = makeTestHook({ player });
     const { result } = renderHook(Hook, {
       wrapper: Wrapper,
-      initialProps: { player },
     });
-    await act(
+    await doubleAct(
       async () =>
         await player.emit({
           activeData: {
@@ -198,7 +219,7 @@ describe("MessagePipelineProvider/useMessagePipeline", () => {
     expect(result.current.subscriptions).toEqual([{ topic: "/input/foo" }]);
 
     // Emit empty player state to process new subscriptions
-    await act(async () => await player.emit());
+    await doubleAct(async () => await player.emit());
 
     expect(result.current.messageEventsBySubscriberId.get("custom-id")).toEqual([
       {
@@ -217,9 +238,9 @@ describe("MessagePipelineProvider/useMessagePipeline", () => {
 
   it("sets publishers", async () => {
     const player = new FakePlayer();
+    const { Hook, Wrapper } = makeTestHook({ player });
     const { result } = renderHook(Hook, {
       wrapper: Wrapper,
-      initialProps: { player },
     });
 
     act(() => result.current.setPublishers("test", [{ topic: "/studio/test", datatype: "test" }]));
@@ -233,20 +254,20 @@ describe("MessagePipelineProvider/useMessagePipeline", () => {
 
     const lastPublishers = result.current.publishers;
     // cause the player to emit a frame outside the render loop to trigger another render
-    await act(async () => await player.emit());
+    await doubleAct(async () => await player.emit());
     // make sure publishers are reference equal when they don't change
     expect(result.current.publishers).toBe(lastPublishers);
   });
 
   it("renders with the same callback functions every time", async () => {
     const player = new FakePlayer();
+    const { Hook, Wrapper } = makeTestHook({ player });
     const { result } = renderHook(Hook, {
       wrapper: Wrapper,
-      initialProps: { player },
     });
 
     const lastContext = result.current;
-    await act(async () => await player.emit());
+    await doubleAct(async () => await player.emit());
     for (const [key, value] of Object.entries(result.current)) {
       if (typeof value === "function") {
         expect((lastContext as Record<string, unknown>)[key]).toBe(value);
@@ -256,19 +277,19 @@ describe("MessagePipelineProvider/useMessagePipeline", () => {
 
   it("resolves listener promise after each render", async () => {
     const player = new FakePlayer();
-    const { result } = renderHook(Hook, {
+    const { Hook, Wrapper, all } = makeTestHook({ player });
+    renderHook(Hook, {
       wrapper: Wrapper,
-      initialProps: { player },
     });
 
     // once for the initialization message
-    expect(result.all.length).toBe(1);
+    expect(all.length).toBe(1);
     // Now wait for the player state emit cycle to complete.
     // This promise should resolve when the render loop finishes.
-    await act(async () => await player.emit());
-    expect(result.all.length).toBe(2);
-    await act(async () => await player.emit());
-    expect(result.all.length).toBe(3);
+    await doubleAct(async () => await player.emit());
+    expect(all.length).toBe(2);
+    await doubleAct(async () => await player.emit());
+    expect(all.length).toBe(3);
   });
 
   it("proxies player methods to player, accounting for capabilities", async () => {
@@ -277,9 +298,9 @@ describe("MessagePipelineProvider/useMessagePipeline", () => {
     jest.spyOn(player, "pausePlayback");
     jest.spyOn(player, "setPlaybackSpeed");
     jest.spyOn(player, "seekPlayback");
+    const { Hook, Wrapper } = makeTestHook({ player });
     const { result } = renderHook(Hook, {
       wrapper: Wrapper,
-      initialProps: { player },
     });
 
     expect(result.current.startPlayback).toBeUndefined();
@@ -289,7 +310,7 @@ describe("MessagePipelineProvider/useMessagePipeline", () => {
 
     player.setCapabilities([PlayerCapabilities.playbackControl]);
 
-    await act(async () => await player.emit());
+    await doubleAct(async () => await player.emit());
 
     expect(result.current.startPlayback).not.toBeUndefined();
     expect(result.current.pausePlayback).not.toBeUndefined();
@@ -308,7 +329,7 @@ describe("MessagePipelineProvider/useMessagePipeline", () => {
 
     player.setCapabilities([PlayerCapabilities.playbackControl, PlayerCapabilities.setSpeed]);
 
-    await act(async () => await player.emit());
+    await doubleAct(async () => await player.emit());
     expect(player.setPlaybackSpeed).toHaveBeenCalledTimes(0);
     result.current.setPlaybackSpeed!(0.5);
     expect(player.setPlaybackSpeed).toHaveBeenCalledWith(0.5);
@@ -317,9 +338,9 @@ describe("MessagePipelineProvider/useMessagePipeline", () => {
   it("closes player on unmount", () => {
     const player = new FakePlayer();
     jest.spyOn(player, "close");
+    const { Hook, Wrapper } = makeTestHook({ player });
     const { unmount } = renderHook(Hook, {
       wrapper: Wrapper,
-      initialProps: { player },
     });
 
     unmount();
@@ -329,34 +350,34 @@ describe("MessagePipelineProvider/useMessagePipeline", () => {
   describe("when changing the player", () => {
     let player: FakePlayer;
     let player2: FakePlayer;
-    let result: RenderResult<MessagePipelineContext>;
+    let all: ReturnType<typeof makeTestHook>["all"];
+    let Hook: ReturnType<typeof makeTestHook>["Hook"];
     beforeEach(async () => {
       player = new FakePlayer();
       player.playerId = "fake player 1";
       jest.spyOn(player, "close");
-      let rerender;
-      ({ result, rerender } = renderHook(Hook, {
-        wrapper: Wrapper,
-        initialProps: { player },
-      }));
+      let Wrapper, setPlayer;
+      ({ Hook, Wrapper, all, setPlayer } = makeTestHook({ player }));
+      const { rerender } = renderHook(Hook, { wrapper: Wrapper });
 
-      await act(async () => await player.emit());
-      expect(result.all.length).toBe(2); // eslint-disable-line jest/no-standalone-expect
+      await doubleAct(async () => await player.emit());
+      expect(all.length).toBe(2); // eslint-disable-line jest/no-standalone-expect
 
       player2 = new FakePlayer();
       player2.playerId = "fake player 2";
-      rerender({ player: player2 });
+      setPlayer(player2);
+      rerender();
       expect(player.close).toHaveBeenCalledTimes(1); // eslint-disable-line jest/no-standalone-expect
-      expect(result.all.length).toBe(4); // eslint-disable-line jest/no-standalone-expect
+      expect(all.length).toBe(4); // eslint-disable-line jest/no-standalone-expect
     });
 
     it("closes old player when new player is supplied and stops old player message flow", async () => {
-      await act(async () => await player2.emit());
-      expect(result.all.length).toBe(5);
-      await act(async () => await player.emit());
-      expect(result.all.length).toBe(5);
+      await doubleAct(async () => await player2.emit());
+      expect(all.length).toBe(5);
+      await doubleAct(async () => await player.emit());
+      expect(all.length).toBe(5);
       expect(
-        result.all.map((ctx) => {
+        all.map((ctx) => {
           if (ctx instanceof Error) {
             throw ctx;
           }
@@ -366,12 +387,12 @@ describe("MessagePipelineProvider/useMessagePipeline", () => {
     });
 
     it("does not think the old player is the new player if it emits first", async () => {
-      await act(async () => await player.emit());
-      expect(result.all.length).toBe(4);
-      await act(async () => await player2.emit());
-      expect(result.all.length).toBe(5);
+      await doubleAct(async () => await player.emit());
+      expect(all.length).toBe(4);
+      await doubleAct(async () => await player2.emit());
+      expect(all.length).toBe(5);
       expect(
-        result.all.map((ctx) => {
+        all.map((ctx) => {
           if (ctx instanceof Error) {
             throw ctx;
           }
@@ -383,6 +404,7 @@ describe("MessagePipelineProvider/useMessagePipeline", () => {
 
   it("does not throw when interacting w/ context and player is missing", () => {
     expect(() => {
+      const { Hook, Wrapper } = makeTestHook({});
       const { result } = renderHook(Hook, { wrapper: Wrapper });
       expect(result.current.startPlayback).toBeUndefined();
       expect(result.current.pausePlayback).toBeUndefined();
@@ -394,16 +416,17 @@ describe("MessagePipelineProvider/useMessagePipeline", () => {
 
   it("transfers subscriptions and publishers between players", async () => {
     const player = new FakePlayer();
+    const { Hook, Wrapper, setPlayer } = makeTestHook({ player });
     const { result, rerender } = renderHook(Hook, {
       wrapper: Wrapper,
-      initialProps: { player },
     });
     act(() => result.current.setSubscriptions("test", [{ topic: "/studio/test" }]));
     act(() => result.current.setSubscriptions("bar", [{ topic: "/studio/test2" }]));
     act(() => result.current.setPublishers("test", [{ topic: "/studio/test", datatype: "test" }]));
 
     const player2 = new FakePlayer();
-    rerender({ player: player2 });
+    setPlayer(player2);
+    rerender();
     expect(player2.subscriptions).toEqual([{ topic: "/studio/test" }, { topic: "/studio/test2" }]);
     expect(player2.publishers).toEqual([{ topic: "/studio/test", datatype: "test" }]);
   });
@@ -412,12 +435,10 @@ describe("MessagePipelineProvider/useMessagePipeline", () => {
     it("frames automatically resolve without calling pauseFrame", async () => {
       let hasFinishedFrame = false;
       const player = new FakePlayer();
-      renderHook(Hook, {
-        wrapper: Wrapper,
-        initialProps: { player },
-      });
+      const { Hook, Wrapper } = makeTestHook({ player });
+      renderHook(Hook, { wrapper: Wrapper });
 
-      await act(async () => {
+      await doubleAct(async () => {
         return await player.emit().then(() => {
           hasFinishedFrame = true;
         });
@@ -429,10 +450,8 @@ describe("MessagePipelineProvider/useMessagePipeline", () => {
     it("when pausing for multiple promises, waits for all of them to resolve", async () => {
       // Start by pausing twice.
       const player = new FakePlayer();
-      const { result } = renderHook(Hook, {
-        wrapper: Wrapper,
-        initialProps: { player },
-      });
+      const { Hook, Wrapper } = makeTestHook({ player });
+      const { result } = renderHook(Hook, { wrapper: Wrapper });
       const resumeFunctions = [
         result.current.pauseFrame(""),
         result.current.pauseFrame(""),
@@ -463,10 +482,8 @@ describe("MessagePipelineProvider/useMessagePipeline", () => {
     it("can wait for promises multiple frames in a row", async () => {
       expect.assertions(8);
       const player = new FakePlayer();
-      const { result } = renderHook(Hook, {
-        wrapper: Wrapper,
-        initialProps: { player },
-      });
+      const { Hook, Wrapper } = makeTestHook({ player });
+      const { result } = renderHook(Hook, { wrapper: Wrapper });
       async function runSingleFrame({ shouldPause }: { shouldPause: boolean }) {
         let resumeFn;
         if (shouldPause) {
@@ -500,10 +517,8 @@ describe("MessagePipelineProvider/useMessagePipeline", () => {
 
     it("Adding a promise that is previously resolved just plays through", async () => {
       const player = new FakePlayer();
-      const { result } = renderHook(Hook, {
-        wrapper: Wrapper,
-        initialProps: { player },
-      });
+      const { Hook, Wrapper } = makeTestHook({ player });
+      const { result } = renderHook(Hook, { wrapper: Wrapper });
 
       // Pause the current frame, but immediately resume it before we actually emit.
       const resumeFn = result.current.pauseFrame("");
@@ -525,10 +540,8 @@ describe("MessagePipelineProvider/useMessagePipeline", () => {
 
     it("Adding a promise that does not resolve eventually results in an error, and then continues playing", async () => {
       const player = new FakePlayer();
-      const { result } = renderHook(Hook, {
-        wrapper: Wrapper,
-        initialProps: { player },
-      });
+      const { Hook, Wrapper } = makeTestHook({ player });
+      const { result } = renderHook(Hook, { wrapper: Wrapper });
       // Pause the current frame.
       result.current.pauseFrame("");
 
@@ -548,10 +561,8 @@ describe("MessagePipelineProvider/useMessagePipeline", () => {
 
     it("Adding multiple promises that do not resolve eventually results in an error, and then continues playing", async () => {
       const player = new FakePlayer();
-      const { result } = renderHook(Hook, {
-        wrapper: Wrapper,
-        initialProps: { player },
-      });
+      const { Hook, Wrapper } = makeTestHook({ player });
+      const { result } = renderHook(Hook, { wrapper: Wrapper });
 
       // Pause the current frame twice.
       result.current.pauseFrame("");
@@ -573,10 +584,8 @@ describe("MessagePipelineProvider/useMessagePipeline", () => {
 
     it("does not accidentally resolve the second player's promise when replacing the player", async () => {
       const player = new FakePlayer();
-      const { result, rerender } = renderHook(Hook, {
-        wrapper: Wrapper,
-        initialProps: { player },
-      });
+      const { Hook, Wrapper, setPlayer } = makeTestHook({ player });
+      const { result, rerender } = renderHook(Hook, { wrapper: Wrapper });
       // Pause the current frame.
       const firstPlayerResumeFn = result.current.pauseFrame("");
 
@@ -586,7 +595,8 @@ describe("MessagePipelineProvider/useMessagePipeline", () => {
 
       // Replace the player.
       const newPlayer = new FakePlayer();
-      rerender({ player: newPlayer });
+      setPlayer(newPlayer);
+      rerender();
       await delay(20);
 
       const secondPlayerResumeFn = result.current.pauseFrame("");
