@@ -37,6 +37,7 @@ import GlLineLists from "@foxglove/studio-base/panels/ThreeDimensionalViz/comman
 import MeshMarkers, {
   LoadModelOptions,
 } from "@foxglove/studio-base/panels/ThreeDimensionalViz/commands/MeshMarkers";
+import { PointCloudMarker } from "@foxglove/studio-base/panels/ThreeDimensionalViz/commands/PointClouds/types";
 import {
   LAYER_INDEX_TEXT,
   LAYER_INDEX_OCCUPANCY_GRIDS,
@@ -60,6 +61,7 @@ import {
   MeshMarker,
   GlLineListMarker,
   Pose,
+  OccupancyGridMessage,
 } from "@foxglove/studio-base/types/Messages";
 import { ReglColor } from "@foxglove/studio-base/util/colorUtils";
 
@@ -75,13 +77,13 @@ export type InteractiveMarkersByType = {
   cubeList: Interactive<CubeListMarker>[];
   cylinder: Interactive<CylinderMarker>[];
   glText: Interactive<GLTextMarker>[];
-  grid: Interactive<BaseMarker>[];
+  grid: Interactive<OccupancyGridMessage>[];
   instancedLineList: Interactive<BaseMarker>[];
   linedConvexHull: Interactive<LineListMarker | LineStripMarker>[];
   lineList: Interactive<LineListMarker>[];
   lineStrip: Interactive<LineStripMarker>[];
   mesh: Interactive<MeshMarker>[];
-  pointcloud: Interactive<SphereMarker>[];
+  pointcloud: Interactive<PointCloudMarker>[];
   points: Interactive<PointsMarker>[];
   poseMarker: (
     | Interactive<NormalizedPose & { type: 103 }>

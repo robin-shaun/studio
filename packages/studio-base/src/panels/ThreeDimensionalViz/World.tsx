@@ -31,6 +31,7 @@ import WorldMarkers, {
   MarkerWithInteractionData,
 } from "@foxglove/studio-base/panels/ThreeDimensionalViz/WorldMarkers";
 import { LoadModelOptions } from "@foxglove/studio-base/panels/ThreeDimensionalViz/commands/MeshMarkers";
+import { PointCloudMarker } from "@foxglove/studio-base/panels/ThreeDimensionalViz/commands/PointClouds/types";
 import { LAYER_INDEX_DEFAULT_BASE } from "@foxglove/studio-base/panels/ThreeDimensionalViz/constants";
 import {
   IImmutableCoordinateFrame,
@@ -47,6 +48,7 @@ import {
   LineListMarker,
   LineStripMarker,
   MeshMarker,
+  OccupancyGridMessage,
   PointsMarker,
   SphereListMarker,
   SphereMarker,
@@ -101,7 +103,7 @@ function getMarkers({
     cube: (o) => markers.cube.push(o as Interactive<CubeMarker>),
     cubeList: (o) => markers.cubeList.push(o as Interactive<CubeListMarker>),
     cylinder: (o) => markers.cylinder.push(o as Interactive<CylinderMarker>),
-    grid: (o) => markers.grid.push(o as unknown as Interactive<BaseMarker>),
+    grid: (o) => markers.grid.push(o as unknown as Interactive<OccupancyGridMessage>),
     instancedLineList: (o) =>
       markers.instancedLineList.push(o as unknown as Interactive<BaseMarker>),
     linedConvexHull: (o) =>
@@ -109,7 +111,7 @@ function getMarkers({
     lineList: (o) => markers.lineList.push(o as Interactive<LineListMarker>),
     lineStrip: (o) => markers.lineStrip.push(o as Interactive<LineStripMarker>),
     mesh: (o) => markers.mesh.push(o as Interactive<MeshMarker>),
-    pointcloud: (o) => markers.pointcloud.push(o as unknown as Interactive<SphereMarker>),
+    pointcloud: (o) => markers.pointcloud.push(o as unknown as Interactive<PointCloudMarker>),
     points: (o) => markers.points.push(o as Interactive<PointsMarker>),
     poseMarker: (o) => markers.poseMarker.push(o as Interactive<typeof o>),
     sphere: (o) => markers.sphere.push(o as Interactive<SphereMarker>),

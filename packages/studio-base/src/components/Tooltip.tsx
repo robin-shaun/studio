@@ -47,7 +47,7 @@ export function useTooltip({
   tooltip: React.ReactElement | ReactNull;
 } {
   const onRenderContent = useCallback(
-    () => (typeof contents === "function" ? contents() : contents ?? ReactNull),
+    () => <>{typeof contents === "function" ? contents() : contents ?? ReactNull}</>,
     [contents],
   );
   const theme = useTheme();

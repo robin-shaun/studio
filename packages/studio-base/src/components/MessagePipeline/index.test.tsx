@@ -14,7 +14,7 @@
 
 /* eslint-disable jest/no-conditional-expect */
 
-import { renderHook, act } from "@testing-library/react-hooks";
+import { renderHook, act } from "@testing-library/react";
 import { PropsWithChildren, useCallback, useState } from "react";
 
 import AppConfigurationContext from "@foxglove/studio-base/context/AppConfigurationContext";

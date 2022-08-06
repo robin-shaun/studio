@@ -7,8 +7,8 @@
 
 import * as Sentry from "@sentry/electron/renderer";
 import { BrowserTracing } from "@sentry/tracing";
-import { StrictMode } from "react";
-import ReactDOM from "react-dom";
+import { StrictMode, useEffect } from "react";
+import { createRoot } from "react-dom/client";
 
 import { Sockets } from "@foxglove/electron-socket/renderer";
 import Logger from "@foxglove/log";
@@ -63,6 +63,14 @@ if (!rootEl) {
 
 const isDevelopment = process.env.NODE_ENV === "development";
 
+function LogAfterRender(props: React.PropsWithChildren<unknown>): JSX.Element {
+  useEffect(() => {
+    // Integration tests look for this console log to indicate the app has rendered once
+    log.debug("App rendered");
+  }, []);
+  return <>{props.children}</>;
+}
+
 async function main() {
   // Initialize the RPC channel for electron-socket. This method is called first
   // since the window.onmessage handler needs to be installed before
@@ -83,11 +91,13 @@ async function main() {
   );
 
   const enableStrictMode = appConfiguration.get(AppSetting.ENABLE_REACT_STRICT_MODE) as boolean;
-  const root = <Root appConfiguration={appConfiguration} />;
-  ReactDOM.render(enableStrictMode ? <StrictMode>{root}</StrictMode> : root, rootEl, () => {
-    // Integration tests look for this console log to indicate the app has rendered once
-    log.debug("App rendered");
-  });
+  const root = (
+    <LogAfterRender>
+      {" "}
+      <Root appConfiguration={appConfiguration} />
+    </LogAfterRender>
+  );
+  createRoot(rootEl!).render(enableStrictMode ? <StrictMode>{root}</StrictMode> : root);
 }
 
 void main();

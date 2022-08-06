@@ -12,7 +12,7 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { renderHook, act } from "@testing-library/react-hooks";
+import { renderHook, act } from "@testing-library/react";
 import { PropsWithChildren, useState } from "react";
 
 import { MessagePipelineProvider } from "@foxglove/studio-base/components/MessagePipeline";
@@ -51,18 +51,15 @@ describe("useMessageReducer", () => {
     const restore = jest.fn().mockReturnValue(1);
     const addMessage = jest.fn();
     const addMessages = jest.fn();
-    const { result: result1 } = renderHook(() =>
-      PanelAPI.useMessageReducer({ topics: ["/foo"], restore }),
-    );
-    expect(result1.error).toEqual(
-      new Error("useMessageReducer must be provided with exactly one of addMessage or addMessages"),
-    );
-    const { result: result2 } = renderHook(() =>
-      PanelAPI.useMessageReducer({ topics: ["/foo"], restore, addMessage, addMessages }),
-    );
-    expect(result2.error).toEqual(
-      new Error("useMessageReducer must be provided with exactly one of addMessage or addMessages"),
-    );
+    expect(() =>
+      renderHook(() => PanelAPI.useMessageReducer({ topics: ["/foo"], restore })),
+    ).toThrow("useMessageReducer must be provided with exactly one of addMessage or addMessages");
+    expect(() =>
+      renderHook(() =>
+        PanelAPI.useMessageReducer({ topics: ["/foo"], restore, addMessage, addMessages }),
+      ),
+    ).toThrow("useMessageReducer must be provided with exactly one of addMessage or addMessages");
+    (console.error as any).mockClear();
   });
 
   it("calls restore to initialize and addMessage for initial messages", async () => {

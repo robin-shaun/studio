@@ -4,8 +4,8 @@
 
 import * as Sentry from "@sentry/browser";
 import { BrowserTracing } from "@sentry/tracing";
-import { StrictMode } from "react";
-import ReactDOM from "react-dom";
+import { StrictMode, useEffect } from "react";
+import { createRoot } from "react-dom/client";
 
 import Logger from "@foxglove/log";
 import { AppSetting } from "@foxglove/studio-base";
@@ -47,6 +47,14 @@ if (!rootEl) {
 
 const isDevelopment = process.env.NODE_ENV === "development";
 
+function LogAfterRender(props: React.PropsWithChildren<unknown>): JSX.Element {
+  useEffect(() => {
+    // Integration tests look for this console log to indicate the app has rendered once
+    log.debug("App rendered");
+  }, []);
+  return <>{props.children}</>;
+}
+
 async function main() {
   const chromeMatch = navigator.userAgent.match(/Chrome\/(\d+)\./);
   const chromeVersion = chromeMatch ? parseInt(chromeMatch[1] ?? "", 10) : 0;
@@ -60,13 +68,13 @@ async function main() {
       isDismissable={canRenderApp}
     />
   );
-  const renderCallback = () => {
-    // Integration tests look for this console log to indicate the app has rendered once
-    log.debug("App rendered");
-  };
 
   if (!canRenderApp) {
-    ReactDOM.render(<StrictMode>{banner}</StrictMode>, rootEl, renderCallback);
+    createRoot(rootEl!).render(
+      <StrictMode>
+        <LogAfterRender>{banner}</LogAfterRender>
+      </StrictMode>,
+    );
     return;
   }
 
@@ -89,16 +97,12 @@ async function main() {
   const enableStrictMode = appConfiguration.get(AppSetting.ENABLE_REACT_STRICT_MODE) as boolean;
 
   const root = (
-    <>
+    <LogAfterRender>
       {banner}
       <Root appConfiguration={appConfiguration} />
-    </>
+    </LogAfterRender>
   );
-  ReactDOM.render(
-    enableStrictMode ? <StrictMode>{root}</StrictMode> : root,
-    rootEl,
-    renderCallback,
-  );
+  createRoot(rootEl!).render(enableStrictMode ? <StrictMode>{root}</StrictMode> : root);
 }
 
 void main();

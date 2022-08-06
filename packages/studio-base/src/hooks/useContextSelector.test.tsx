@@ -12,8 +12,7 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { render } from "@testing-library/react";
-import { renderHook } from "@testing-library/react-hooks";
+import { render, renderHook } from "@testing-library/react";
 import { PropsWithChildren } from "react";
 
 import useContextSelector from "@foxglove/studio-base/hooks/useContextSelector";

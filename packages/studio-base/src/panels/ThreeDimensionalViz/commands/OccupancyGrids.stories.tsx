@@ -6,6 +6,8 @@ import { quat, vec3 } from "gl-matrix";
 
 import { Worldview, DEFAULT_CAMERA_STATE } from "@foxglove/regl-worldview";
 import GridBuilder from "@foxglove/studio-base/panels/ThreeDimensionalViz/GridBuilder";
+import { OccupancyGridMessage } from "@foxglove/studio-base/types/Messages";
+import { emptyPose } from "@foxglove/studio-base/util/Pose";
 
 import GlLineLists from "./GlLineLists";
 import OccupancyGrids from "./OccupancyGrids";
@@ -16,11 +18,16 @@ export default {
   parameters: { colorScheme: "dark" },
 };
 
-function makeGrid([px, py, pz]: vec3, [ox, oy, oz, ow]: quat) {
+function makeGrid([px, py, pz]: vec3, [ox, oy, oz, ow]: quat): OccupancyGridMessage {
   return {
-    pose: { position: { x: px, y: py, z: pz }, orientation: { x: ox, y: oy, z: oz, w: ow } },
+    header: { seq: 0, stamp: { sec: 0, nsec: 0 }, frame_id: "" },
+    name: "",
+    type: 101,
+    pose: { position: { x: px!, y: py!, z: pz! }, orientation: { x: ox!, y: oy!, z: oz!, w: ow! } },
     alpha: 0.8,
     info: {
+      map_load_time: { sec: 0, nsec: 0 },
+      origin: emptyPose(),
       resolution: 0.2,
       width: 10,
       height: 10,

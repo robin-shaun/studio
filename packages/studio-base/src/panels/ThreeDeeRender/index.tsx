@@ -3,7 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { StrictMode } from "react";
-import ReactDOM from "react-dom";
+import { createRoot } from "react-dom/client";
 
 import { PanelExtensionContext } from "@foxglove/studio";
 import Panel from "@foxglove/studio-base/components/Panel";
@@ -14,11 +14,10 @@ import { ThreeDeeRender } from "./ThreeDeeRender";
 import helpContent from "./index.help.md";
 
 function initPanel(context: PanelExtensionContext) {
-  ReactDOM.render(
+  createRoot(context.panelElement).render(
     <StrictMode>
       <ThreeDeeRender context={context} />
     </StrictMode>,
-    context.panelElement,
   );
 }
 

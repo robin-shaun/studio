@@ -1,8 +1,9 @@
+/** @jest-environment jsdom */
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { act, renderHook } from "@testing-library/react-hooks";
+import { act, renderHook } from "@testing-library/react";
 import { useEffect } from "react";
 import { ToastProvider } from "react-toast-notifications";
 
@@ -141,7 +142,7 @@ describe("CurrentLayoutProvider", () => {
     expect(mockLayoutManager.getLayout.mock.calls).toEqual([["example"], ["example"]]);
     expect(all.map((item) => (item instanceof Error ? undefined : item.layoutState))).toEqual([
       { selectedLayout: undefined },
-      { selectedLayout: { loading: true, id: "example", data: undefined } },
+      // { selectedLayout: { loading: true, id: "example", data: undefined } },
       { selectedLayout: { loading: false, id: "example", data: expectedState } },
     ]);
     (console.warn as jest.Mock).mockClear();
@@ -187,9 +188,9 @@ describe("CurrentLayoutProvider", () => {
     expect(mockUserProfile.setUserProfile.mock.calls).toEqual([[{ currentLayoutId: "example2" }]]);
     expect(all.map((item) => (item instanceof Error ? undefined : item.layoutState))).toEqual([
       { selectedLayout: undefined },
-      { selectedLayout: { loading: true, id: "example", data: undefined } },
+      // { selectedLayout: { loading: true, id: "example", data: undefined } },
       { selectedLayout: { loading: false, id: "example", data: TEST_LAYOUT } },
-      { selectedLayout: { loading: true, id: "example2", data: undefined } },
+      // { selectedLayout: { loading: true, id: "example2", data: undefined } },
       { selectedLayout: { loading: false, id: "example2", data: newLayout } },
     ]);
     (console.warn as jest.Mock).mockClear();
@@ -233,7 +234,7 @@ describe("CurrentLayoutProvider", () => {
     ]);
     expect(all.map((item) => (item instanceof Error ? undefined : item.layoutState))).toEqual([
       { selectedLayout: undefined },
-      { selectedLayout: { loading: true, id: "example", data: undefined } },
+      // { selectedLayout: { loading: true, id: "example", data: undefined } },
       { selectedLayout: { loading: false, id: "example", data: TEST_LAYOUT } },
       { selectedLayout: { loading: false, id: "example", data: newState } },
     ]);

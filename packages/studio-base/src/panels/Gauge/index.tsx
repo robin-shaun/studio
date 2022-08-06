@@ -3,7 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { StrictMode } from "react";
-import ReactDOM from "react-dom";
+import { createRoot } from "react-dom/client";
 
 import { PanelExtensionContext } from "@foxglove/studio";
 import Panel from "@foxglove/studio-base/components/Panel";
@@ -16,13 +16,12 @@ import helpContent from "./index.help.md";
 import { Config } from "./types";
 
 function initPanel(context: PanelExtensionContext) {
-  ReactDOM.render(
+  createRoot(context.panelElement).render(
     <StrictMode>
       <ThemeProvider isDark>
         <Gauge context={context} />
       </ThemeProvider>
     </StrictMode>,
-    context.panelElement,
   );
 }
 

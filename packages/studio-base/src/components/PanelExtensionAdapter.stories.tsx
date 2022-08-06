@@ -3,7 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import { ReactElement, useLayoutEffect, useState } from "react";
-import ReactDOM from "react-dom";
+import { createRoot } from "react-dom/client";
 
 import { toSec } from "@foxglove/rostime";
 import { PanelExtensionContext, ParameterValue, RenderState, Time } from "@foxglove/studio";
@@ -80,7 +80,7 @@ function SimplePanel({ context }: { context: PanelExtensionContext }) {
 
 export const SimplePanelRender = (): ReactElement => {
   function initPanel(context: PanelExtensionContext) {
-    ReactDOM.render(<SimplePanel context={context} />, context.panelElement);
+    createRoot(context.panelElement).render(<SimplePanel context={context} />);
   }
 
   return (

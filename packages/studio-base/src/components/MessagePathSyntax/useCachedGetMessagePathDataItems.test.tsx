@@ -11,7 +11,7 @@
 //   This source code is licensed under the Apache License, Version 2.0,
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
-import { act, renderHook } from "@testing-library/react-hooks";
+import { act, renderHook } from "@testing-library/react";
 
 import parseRosPath from "@foxglove/studio-base/components/MessagePathSyntax/parseRosPath";
 import MockMessagePipelineProvider from "@foxglove/studio-base/components/MessagePipeline/MockMessagePipelineProvider";

@@ -461,9 +461,7 @@ function instancedGetChildrenForHitmap<
 }
 
 type Props = CommonCommandProps & {
-  // TypeScript doesn't allow us to pass an array variable if `children` is set to an array type here
-  // https://github.com/microsoft/TypeScript/issues/30711#issuecomment-485013588
-  children: React.ReactNode;
+  children: PointCloudMarker[];
 
   clearCachedMarkers?: boolean;
 };
@@ -471,11 +469,11 @@ type Props = CommonCommandProps & {
 export default function PointClouds({ children, clearCachedMarkers, ...rest }: Props): JSX.Element {
   const [command] = useState(() => makePointCloudCommand());
   const markerCache = useRef(new Map<Uint8Array, MemoizedMarker>());
-  markerCache.current = updateMarkerCache(markerCache.current, children as PointCloudMarker[]);
+  markerCache.current = updateMarkerCache(markerCache.current, children);
 
   const decodedMarkers = !(clearCachedMarkers ?? false)
     ? [...markerCache.current.values()].map((decoded) => decoded.marker)
-    : (children as PointCloudMarker[]).map(decodeMarker);
+    : children.map(decodeMarker);
   return (
     <Command getChildrenForHitmap={instancedGetChildrenForHitmap} {...rest} reglCommand={command}>
       {decodedMarkers}

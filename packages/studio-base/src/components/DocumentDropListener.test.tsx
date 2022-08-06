@@ -12,7 +12,7 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import ReactDOM from "react-dom";
+import { createRoot } from "react-dom/client";
 import { act } from "react-dom/test-utils";
 import { ToastProvider } from "react-toast-notifications";
 
@@ -30,7 +30,7 @@ describe("<DocumentDropListener>", () => {
     wrapper = document.createElement("div");
     document.body.appendChild(wrapper);
 
-    ReactDOM.render(
+    createRoot(wrapper).render(
       <div>
         <ToastProvider>
           <ThemeProvider isDark={false}>
@@ -40,7 +40,6 @@ describe("<DocumentDropListener>", () => {
           </ThemeProvider>
         </ToastProvider>
       </div>,
-      wrapper,
     );
   });
 
@@ -61,9 +60,7 @@ describe("<DocumentDropListener>", () => {
     (event as any).dataTransfer = {
       types: ["Files"],
     };
-    act(() => {
-      document.dispatchEvent(event); // The event should NOT bubble up from the document to the window
-    });
+    document.dispatchEvent(event); // The event should NOT bubble up from the document to the window
     expect(windowDragoverHandler).not.toHaveBeenCalled();
   });
 

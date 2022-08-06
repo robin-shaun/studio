@@ -21,6 +21,8 @@ import {
   CommonCommandProps,
   Pose,
   Vec3,
+  BaseShape,
+  Point,
 } from "@foxglove/regl-worldview";
 import { PoseSettings } from "@foxglove/studio-base/panels/ThreeDimensionalViz/TopicSettingsEditor/PoseSettingsEditor";
 import {
@@ -43,7 +45,7 @@ type PoseMarkerProps = CommonCommandProps & {
 function makeArrow(
   marker: PoseMarkerProps["markers"][0],
   instancePose: Pose | undefined,
-): React.ReactNode {
+): BaseShape & { points?: Point[] } {
   const headLength = marker.settings?.size?.headLength ?? DEFAULT_SIZE.headLength;
   const newMarker = {
     ...marker,
@@ -84,7 +86,7 @@ function makeArrow(
 }
 
 function PoseMarkers({ markers, layerIndex }: PoseMarkerProps): ReactElement {
-  const arrowMarkers: React.ReactNode[] = [];
+  const arrowMarkers: Array<BaseShape & { points?: Point[] }> = [];
   for (const marker of markers) {
     if (marker.type === 111) {
       for (const instancePose of marker.poses) {
