@@ -20,6 +20,6 @@ module.exports = {
     // Generate JavaScript code from the rules
     const grammarJs = generate(grammarInfoObject, "grammar");
 
-    return grammarJs;
+    return { code: grammarJs };
   },
 };
