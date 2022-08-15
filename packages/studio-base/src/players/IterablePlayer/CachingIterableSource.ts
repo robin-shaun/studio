@@ -52,11 +52,6 @@ type Options = {
   maxTotalSize?: number;
 };
 
-function findStartCacheItemIndex(items: [bigint, IteratorResult][], key: bigint) {
-  const idx = sortedIndexByTuple(items, key);
-  return idx < 0 ? ~idx : idx;
-}
-
 /**
  * CachingIterableSource proxies access to IIterableSource through a memory buffer.
  *
@@ -88,8 +83,8 @@ class CachingIterableSource implements IIterableSource {
 
   constructor(source: IIterableSource, opt?: Options) {
     this.source = source;
-    this.maxTotalSizeBytes = opt?.maxTotalSize ?? 1e9;
-    this.maxBlockSizeBytes = opt?.maxBlockSize ?? 5000000;
+    this.maxTotalSizeBytes = opt?.maxTotalSize ?? 1073741824; // 1GB
+    this.maxBlockSizeBytes = opt?.maxBlockSize ?? 52428800; // 50MB
   }
 
   async initialize(): Promise<Initalization> {
@@ -148,7 +143,10 @@ class CachingIterableSource implements IIterableSource {
 
       // We've found a block containing our readHead, try reading items from the block
       if (block) {
-        const cacheIndex = findStartCacheItemIndex(block.items, toNanoSec(readHead));
+        const cacheIndex = CachingIterableSource.FindStartCacheItemIndex(
+          block.items,
+          toNanoSec(readHead),
+        );
 
         // We have a cached item, we can consume our cache until we've read to the end
         for (let idx = cacheIndex; idx < block.items.length; ++idx) {
@@ -304,8 +302,6 @@ class CachingIterableSource implements IIterableSource {
           block.size += pendingSizeInBytes;
         }
 
-        pendingIterResults.length = 0;
-
         this.recomputeLoadedRangeCache();
       } else {
         // We don't have a block after finishing our source. This can happen if the last
@@ -437,11 +433,36 @@ class CachingIterableSource implements IIterableSource {
       return;
     }
 
-    this.loadedRangesCache = this.cache.map((block) => {
-      const start = Number(toNanoSec(block.start) - sourceStartNs) / rangeNs;
-      const end = Number(toNanoSec(block.end) - sourceStartNs) / rangeNs;
-      return { start, end };
-    });
+    // Merge continuous ranges (i.e. a block that starts 1 nanosecond after previous ends)
+    // This avoids float rounding errors when computing loadedRangesCache and produces
+    // continuous ranges for continuous spans
+    const ranges: { start: number; end: number }[] = [];
+    let prevRange: { start: bigint; end: bigint } | undefined;
+    for (const block of this.cache) {
+      const range = {
+        start: toNanoSec(block.start),
+        end: toNanoSec(block.end),
+      };
+      if (!prevRange) {
+        prevRange = range;
+      } else if (prevRange.end + 1n === range.start) {
+        prevRange.end = range.end;
+      } else {
+        ranges.push({
+          start: Number(prevRange.start - sourceStartNs) / rangeNs,
+          end: Number(prevRange.end - sourceStartNs) / rangeNs,
+        });
+        prevRange = range;
+      }
+    }
+    if (prevRange) {
+      ranges.push({
+        start: Number(prevRange.start - sourceStartNs) / rangeNs,
+        end: Number(prevRange.end - sourceStartNs) / rangeNs,
+      });
+    }
+
+    this.loadedRangesCache = ranges;
   }
 
   // Purge the oldest cache block if adding sizeInBytes to the cache would exceed the maxTotalSizeBytes
@@ -470,6 +491,33 @@ class CachingIterableSource implements IIterableSource {
     }
 
     return false;
+  }
+
+  private static FindStartCacheItemIndex(items: [bigint, IteratorResult][], key: bigint) {
+    // A common case is to access consecutive blocks during playback. In that case, we expect to
+    // read from the first item in the block. We check this special case first to avoid a binary
+    // search if we are able to find the key in the first item.
+    if (items[0] != undefined && items[0][0] >= key) {
+      return 0;
+    }
+
+    let idx = sortedIndexByTuple(items, key);
+    if (idx < 0) {
+      return ~idx;
+    }
+
+    // An exact match just means we've found a matching item, not necessarily the first or last
+    // matching item. We want the first item so we linearly iterate backwards until we no longer have
+    // a match.
+    for (let i = idx - 1; i >= 0; --i) {
+      const prevItem = items[i];
+      if (prevItem != undefined && prevItem[0] !== key) {
+        break;
+      }
+      idx = i;
+    }
+
+    return idx;
   }
 }
 
