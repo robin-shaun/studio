@@ -53,11 +53,10 @@ const useStyles = makeStyles<void, "eventMetadata" | "eventHeader">()(
     grid: {
       display: "grid",
       gridTemplateColumns: "auto 1fr",
-      padding: theme.spacing(1.25, 1),
     },
     spacer: {
       gridColumn: "span 2",
-      paddingBottom: theme.spacing(1),
+      borderTop: `1px solid ${theme.palette.divider}`,
     },
     event: {
       display: "contents",
@@ -65,7 +64,7 @@ const useStyles = makeStyles<void, "eventMetadata" | "eventHeader">()(
       border: "1px solid #ccc",
 
       "&:hover": {
-        [`.${classes.eventMetadata},.${classes.eventHeader}`]: {
+        [`.${classes.eventMetadata}`]: {
           backgroundColor: alpha(theme.palette.primary.main, theme.palette.action.activatedOpacity),
         },
       },
@@ -74,8 +73,8 @@ const useStyles = makeStyles<void, "eventMetadata" | "eventHeader">()(
       gridColumn: "span 2",
     },
     eventHeader: {
-      backgroundColor: theme.palette.action.hover,
       fontWeight: 800,
+      padding: theme.spacing(0.5),
       borderTopRightRadius: theme.shape.borderRadius,
       borderTopLeftRadius: theme.shape.borderRadius,
 
@@ -86,11 +85,11 @@ const useStyles = makeStyles<void, "eventMetadata" | "eventHeader">()(
     },
     eventMetadata: {
       padding: theme.spacing(1),
-      backgroundColor: theme.palette.action.hover,
-      borderTop: `1px solid ${theme.palette.background.paper}`,
+      backgroundColor: theme.palette.background.default,
+      borderTop: `1px solid ${theme.palette.divider}`,
 
       "&:nth-of-type(even)": {
-        borderRight: `1px solid ${theme.palette.background.paper}`,
+        borderRight: `1px solid ${theme.palette.divider}`,
       },
       "&:nth-last-of-type(2), &:last-of-type": {
         borderBottomRightRadius: theme.shape.borderRadius,
@@ -121,7 +120,7 @@ export default function EventsList(): JSX.Element {
         <TextField
           variant="filled"
           fullWidth
-          placeholder="Filter by topic or datatype"
+          placeholder="Filter event metadata"
           InputProps={{
             startAdornment: <SearchIcon fontSize="small" />,
           }}
