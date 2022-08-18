@@ -5,6 +5,7 @@
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import SearchIcon from "@mui/icons-material/Search";
 import { alpha, AppBar, IconButton, TextField, Typography } from "@mui/material";
+import { compact } from "lodash";
 import { Fragment } from "react";
 import { makeStyles } from "tss-react/mui";
 
@@ -143,18 +144,16 @@ export default function EventsList(): JSX.Element {
                   </IconButton>
                 </Stack>
                 {event.metadata != undefined &&
-                  [
-                    ["timestamp", Number(event.timestampNanos / 1000000000).toFixed(9)],
+                  compact([
+                    ["timestamp", event.timestampNanos],
                     Number(event.durationNanos) > 0 && ["duration", `${event.durationNanos}ns`],
                     ...Object.entries(event.metadata),
-                  ]
-                    .filter(Boolean)
-                    .map(([key, value]) => (
-                      <>
-                        <div className={classes.eventMetadata}>{key}</div>
-                        <div className={classes.eventMetadata}>{value}</div>
-                      </>
-                    ))}
+                  ]).map(([key, value]) => (
+                    <>
+                      <div className={classes.eventMetadata}>{key}</div>
+                      <div className={classes.eventMetadata}>{value}</div>
+                    </>
+                  ))}
               </div>
             </Fragment>
           );
