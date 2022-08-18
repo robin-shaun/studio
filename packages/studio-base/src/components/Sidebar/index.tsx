@@ -2,7 +2,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { Badge, Paper, Tab, Tabs } from "@mui/material";
+import { Badge, Paper, Tab, Tabs, ThemeProvider } from "@mui/material";
 import {
   ComponentProps,
   PropsWithChildren,
@@ -20,6 +20,7 @@ import { BuiltinIcon } from "@foxglove/studio-base/components/BuiltinIcon";
 import ErrorBoundary from "@foxglove/studio-base/components/ErrorBoundary";
 import Stack from "@foxglove/studio-base/components/Stack";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks";
+import { createMuiTheme } from "@foxglove/studio-base/theme";
 
 import { MemoryUseIndicator } from "./MemoryUseIndicator";
 import { TabSpacer } from "./TabSpacer";
@@ -37,10 +38,9 @@ export type SidebarItem = {
 };
 
 const useStyles = makeStyles()((theme) => ({
-  nav: {
-    boxSizing: "content-box",
+  paper: {
     borderRight: `1px solid ${theme.palette.divider}`,
-    backgroundColor: theme.palette.background.paper,
+    boxSizing: "content-box",
   },
   tabs: {
     flexGrow: 1,
@@ -104,6 +104,7 @@ export default function Sidebar<K extends string>(props: SidebarProps<K>): JSX.E
   const [mosaicValue, setMosaicValue] = useState<MosaicNode<"sidebar" | "children">>("children");
   const { classes } = useStyles();
   const prevSelectedKey = useRef<string | undefined>(undefined);
+  const sidebarTheme = createMuiTheme("dark");
 
   useLayoutEffect(() => {
     if (prevSelectedKey.current !== selectedKey) {
@@ -195,20 +196,24 @@ export default function Sidebar<K extends string>(props: SidebarProps<K>): JSX.E
 
   return (
     <Stack direction="row" fullHeight overflow="hidden">
-      <Stack className={classes.nav} flexShrink={0} justifyContent="space-between">
-        <Tabs
-          className={classes.tabs}
-          orientation="vertical"
-          variant="scrollable"
-          value={selectedKey ?? false}
-          scrollButtons={false}
-        >
-          {topTabs}
-          <TabSpacer />
-          {bottomTabs}
-          {enableMemoryUseIndicator && <MemoryUseIndicator />}
-        </Tabs>
-      </Stack>
+      <ThemeProvider theme={sidebarTheme}>
+        <Paper className={classes.paper} elevation={0}>
+          <Stack flexShrink={0} justifyContent="space-between" fullHeight>
+            <Tabs
+              className={classes.tabs}
+              orientation="vertical"
+              variant="scrollable"
+              value={selectedKey ?? false}
+              scrollButtons={false}
+            >
+              {topTabs}
+              <TabSpacer />
+              {bottomTabs}
+              {enableMemoryUseIndicator && <MemoryUseIndicator />}
+            </Tabs>
+          </Stack>
+        </Paper>
+      </ThemeProvider>
       {
         // By always rendering the mosaic, even if we are only showing children, we can prevent the
         // children from having to re-mount each time the sidebar is opened/closed.
