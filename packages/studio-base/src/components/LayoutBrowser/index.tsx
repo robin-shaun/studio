@@ -31,7 +31,7 @@ import Stack from "@foxglove/studio-base/components/Stack";
 import { useAnalytics } from "@foxglove/studio-base/context/AnalyticsContext";
 import ConsoleApiContext from "@foxglove/studio-base/context/ConsoleApiContext";
 import {
-  LayoutState,
+  selectedLayoutIdSelector,
   useCurrentLayoutActions,
   useCurrentLayoutSelector,
 } from "@foxglove/studio-base/context/CurrentLayoutContext";
@@ -54,8 +54,6 @@ import { useLayoutBrowserReducer } from "./reducer";
 import { debugBorder } from "./styles";
 
 const log = Logger.getLogger(__filename);
-
-const selectedLayoutIdSelector = (state: LayoutState) => state.selectedLayout?.id;
 
 export default function LayoutBrowser({
   currentDateForStorybook,

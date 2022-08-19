@@ -164,6 +164,10 @@ export function useCurrentLayoutSelector<T>(selector: (layoutState: LayoutState)
 
   return state.current.value;
 }
+
+export const selectedLayoutIdSelector = (state: LayoutState): LayoutID | undefined =>
+  state.selectedLayout?.id;
+
 export function useSelectedPanels(): SelectedPanelActions {
   const currentLayout = useGuaranteedContext(CurrentLayoutContext);
   const [selectedPanelIds, setSelectedPanelIdsState] = useState(() =>

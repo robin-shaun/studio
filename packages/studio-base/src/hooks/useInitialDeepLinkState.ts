@@ -9,7 +9,6 @@ import {
   MessagePipelineContext,
   useMessagePipeline,
 } from "@foxglove/studio-base/components/MessagePipeline";
-import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { useCurrentUser } from "@foxglove/studio-base/context/CurrentUserContext";
 import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
@@ -27,7 +26,6 @@ export function useInitialDeepLinkState(deepLinks: readonly string[]): {
   currentUserRequired: boolean;
 } {
   const { selectSource } = usePlayerSelection();
-  const { setSelectedLayoutId } = useCurrentLayoutActions();
 
   const seekPlayback = useMessagePipeline(selectSeek);
   const playerPresence = useMessagePipeline(selectPlayerPresence);
@@ -69,24 +67,7 @@ export function useInitialDeepLinkState(deepLinks: readonly string[]): {
     }
   }, [currentUser, currentUserRequired, selectSource, unappliedUrlState]);
 
-  // Select layout from URL.
-  useEffect(() => {
-    if (!unappliedUrlState?.layoutId) {
-      return;
-    }
-
-    // If our datasource requires a current user then wait until the player is
-    // available to load the layout since we may need to sync layouts first and
-    // that's only possible after the user has logged in.
-    if (currentUserRequired && playerPresence !== PlayerPresence.PRESENT) {
-      return;
-    }
-
-    log.debug(`Initializing layout from url: ${unappliedUrlState.layoutId}`);
-    setSelectedLayoutId(unappliedUrlState.layoutId);
-    setUnappliedUrlState((oldState) => ({ ...oldState, layoutId: undefined }));
-  }, [currentUserRequired, playerPresence, setSelectedLayoutId, unappliedUrlState?.layoutId]);
-
+  // reading in the layoutId is in CurrentLayoutProvider/index.ts
   // Seek to time in URL.
   useEffect(() => {
     if (unappliedUrlState?.time == undefined || !seekPlayback) {

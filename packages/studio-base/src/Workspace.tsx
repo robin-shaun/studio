@@ -60,7 +60,7 @@ import VariablesSidebar from "@foxglove/studio-base/components/VariablesSidebar"
 import { useAssets } from "@foxglove/studio-base/context/AssetsContext";
 import ConsoleApiContext from "@foxglove/studio-base/context/ConsoleApiContext";
 import {
-  LayoutState,
+  selectedLayoutIdSelector,
   useCurrentLayoutSelector,
 } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import { useCurrentUser } from "@foxglove/studio-base/context/CurrentUserContext";
@@ -112,8 +112,6 @@ type SidebarItemKey =
   | "layouts"
   | "preferences"
   | "help";
-
-const selectedLayoutIdSelector = (state: LayoutState) => state.selectedLayout?.id;
 
 function activeElementIsInput() {
   return (

@@ -14,6 +14,7 @@ import { SidebarContent } from "@foxglove/studio-base/components/SidebarContent"
 import Stack from "@foxglove/studio-base/components/Stack";
 import {
   LayoutState,
+  selectedLayoutIdSelector,
   useCurrentLayoutActions,
   useCurrentLayoutSelector,
   useSelectedPanels,
@@ -24,8 +25,6 @@ import { usePanelSettingsEditorStore } from "@foxglove/studio-base/providers/Pan
 import { PanelConfig } from "@foxglove/studio-base/types/panels";
 import { TAB_PANEL_TYPE } from "@foxglove/studio-base/util/globalConstants";
 import { getPanelTypeFromId } from "@foxglove/studio-base/util/layout";
-
-const selectedLayoutIdSelector = (state: LayoutState) => state.selectedLayout?.id;
 
 const singlePanelIdSelector = (state: LayoutState) =>
   typeof state.selectedLayout?.data?.layout === "string"
