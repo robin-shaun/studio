@@ -7,13 +7,19 @@ import { renderHook } from "@testing-library/react-hooks";
 import { PropsWithChildren } from "react";
 
 import MockMessagePipelineProvider from "@foxglove/studio-base/components/MessagePipeline/MockMessagePipelineProvider";
+import { useCurrentLayoutActions } from "@foxglove/studio-base/context/CurrentLayoutContext";
 import CurrentUserContext, { User } from "@foxglove/studio-base/context/CurrentUserContext";
+import { useLayoutManager } from "@foxglove/studio-base/context/LayoutManagerContext";
 import PlayerSelectionContext, {
   PlayerSelection,
 } from "@foxglove/studio-base/context/PlayerSelectionContext";
+import { useUserProfileStorage } from "@foxglove/studio-base/context/UserProfileStorageContext";
 import { useInitialDeepLinkState } from "@foxglove/studio-base/hooks/useInitialDeepLinkState";
 import { useSessionStorageValue } from "@foxglove/studio-base/hooks/useSessionStorageValue";
 
+jest.mock("react-toast-notifications");
+jest.mock("@foxglove/studio-base/context/LayoutManagerContext");
+jest.mock("@foxglove/studio-base/context/UserProfileStorageContext");
 jest.mock("@foxglove/studio-base/hooks/useSessionStorageValue");
 jest.mock("@foxglove/studio-base/context/CurrentLayoutContext");
 
@@ -55,6 +61,8 @@ function makeWrapper(initialProps: WrapperProps) {
 
 describe("Initial deep link state", () => {
   const selectSource = jest.fn();
+  const setSelectedLayoutId = jest.fn();
+  const getLayout = jest.fn(async () => await Promise.resolve());
   const emptyPlayerSelection = {
     selectSource,
     selectRecent: () => {},
@@ -62,10 +70,13 @@ describe("Initial deep link state", () => {
     recentSources: [],
     selectedSource: undefined,
   };
-
   beforeEach(() => {
     (useSessionStorageValue as jest.Mock).mockReturnValue(["web", jest.fn()]);
+    (useCurrentLayoutActions as jest.Mock).mockReturnValue({ setSelectedLayoutId });
+    (useLayoutManager as jest.Mock).mockReturnValue({ layoutManager: { getLayout } });
+    (useUserProfileStorage as jest.Mock).mockReturnValue({ getUserProfile: jest.fn() });
     selectSource.mockClear();
+    setSelectedLayoutId.mockClear();
   });
 
   it("doesn't select a source without ds params", () => {
@@ -87,6 +98,8 @@ describe("Initial deep link state", () => {
       params: undefined,
       type: "connection",
     });
+
+    expect(setSelectedLayoutId).not.toHaveBeenCalled();
   });
 
   it("selects a connection datasource from the link", () => {
@@ -103,6 +116,7 @@ describe("Initial deep link state", () => {
       params: { url: "ws://localhost:9090" },
       type: "connection",
     });
+    expect(setSelectedLayoutId).toHaveBeenCalledWith("a288e116-d177-4b57-8f30-6ada61919638");
   });
 
   it("waits for a current user to select a data platform source", () => {
@@ -139,5 +153,7 @@ describe("Initial deep link state", () => {
       params: { deviceId: "dev" },
       type: "connection",
     });
+
+    expect(setSelectedLayoutId).toHaveBeenCalledWith("12345");
   });
 });

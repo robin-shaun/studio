@@ -18,6 +18,7 @@ import { usePlayerSelection } from "@foxglove/studio-base/context/PlayerSelectio
 import { useUserProfileStorage } from "@foxglove/studio-base/context/UserProfileStorageContext";
 import { PlayerPresence } from "@foxglove/studio-base/players/types";
 import { defaultLayout } from "@foxglove/studio-base/providers/CurrentLayoutProvider/defaultLayout";
+import { LayoutID } from "@foxglove/studio-base/services/ILayoutStorage";
 import { parseAppURLState } from "@foxglove/studio-base/util/appURLState";
 
 const selectPlayerPresence = (ctx: MessagePipelineContext) => ctx.playerState.presence;
@@ -77,47 +78,53 @@ export function useInitialDeepLinkState(deepLinks: readonly string[]): {
     }
   }, [currentUser, currentUserRequired, selectSource, unappliedUrlState]);
 
-  const [trySetSelectedLayoutIdRequest, trySetSelectedLayoutId] = useAsyncFn(async () => {
-    if (!unappliedUrlState?.layoutId) {
-      return;
-    }
-    let layoutId = undefined;
-    try {
-      const urlLayout = await layoutManager.getLayout(unappliedUrlState.layoutId);
-      if (urlLayout) {
-        layoutId = urlLayout.id;
-      }
-    } catch (error) {
-      console.error(error);
-      addToast(`The layoutId in the url could not be loaded. ${error.toString()}`, {
-        appearance: "error",
-      });
-    }
-    try {
-      const { currentLayoutId } = await getUserProfile();
-      if (currentLayoutId) {
-        const profileLayout = await layoutManager.getLayout(currentLayoutId);
-        if (profileLayout) {
-          layoutId = profileLayout.id;
+  const [trySetSelectedLayoutIdRequest, trySetSelectedLayoutId] = useAsyncFn(
+    async (urlLayoutId: LayoutID) => {
+      let layoutId = undefined;
+      // check if layoutId from url has layout in layoutManager
+      try {
+        const urlLayout = await layoutManager.getLayout(urlLayoutId);
+        if (urlLayout) {
+          layoutId = urlLayout.id;
         }
-      } else {
-        const newLayout = await layoutManager.saveNewLayout({
-          name: "Default",
-          data: defaultLayout,
-          permission: "CREATOR_WRITE",
+      } catch (error) {
+        console.error(error);
+        addToast(`The layoutId in the url could not be loaded. ${error.toString()}`, {
+          appearance: "error",
         });
-        layoutId = newLayout.id;
       }
-    } catch (error) {
-      console.error(error);
-      addToast(`Error loading fallback layout. ${error.toString()}`, {
-        appearance: "error",
-      });
-    }
-    if (layoutId) {
-      setSelectedLayoutId(layoutId);
-    }
-  }, [addToast, getUserProfile, layoutManager, setSelectedLayoutId, unappliedUrlState?.layoutId]);
+      // if it the layoutId from the url is invalid
+      if (!layoutId) {
+        try {
+          // attempt to get one from the user profile that is valid
+          const { currentLayoutId } = await getUserProfile();
+          if (currentLayoutId) {
+            const profileLayout = await layoutManager.getLayout(currentLayoutId);
+            if (profileLayout) {
+              layoutId = profileLayout.id;
+            }
+          } else {
+            // if the user profile doesn't have a currentlayoutId, create a new default
+            const newLayout = await layoutManager.saveNewLayout({
+              name: "Default",
+              data: defaultLayout,
+              permission: "CREATOR_WRITE",
+            });
+            layoutId = newLayout.id;
+          }
+        } catch (error) {
+          console.error(error);
+          addToast(`Error loading fallback layout. ${error.toString()}`, {
+            appearance: "error",
+          });
+        }
+      }
+      if (layoutId) {
+        setSelectedLayoutId(layoutId);
+      }
+    },
+    [addToast, getUserProfile, layoutManager, setSelectedLayoutId],
+  );
 
   // Select layout from URL.
   useEffect(() => {
@@ -133,7 +140,7 @@ export function useInitialDeepLinkState(deepLinks: readonly string[]): {
     }
     if (!trySetSelectedLayoutIdRequest.loading && !trySetSelectedLayoutIdRequest.error) {
       log.debug(`Initializing layout from url: ${unappliedUrlState.layoutId}`);
-      trySetSelectedLayoutId().catch((error) => {
+      trySetSelectedLayoutId(unappliedUrlState.layoutId).catch((error) => {
         console.error(error);
       });
       setUnappliedUrlState((oldState) => ({ ...oldState, layoutId: undefined }));
