@@ -248,21 +248,9 @@ export default function CurrentLayoutProvider({
 
   // Load initial state by re-selecting the last selected layout from the UserProfile.
   useAsync(async () => {
-    // Don't restore the layout if there's one specified in the app state url and it exists
-    const urlLayoutId = windowAppURLState()?.layoutId;
-    if (urlLayoutId) {
-      try {
-        const urlLayout = await layoutManager.getLayout(urlLayoutId);
-        if (urlLayout) {
-          await setSelectedLayoutId(urlLayout.id);
-          return;
-        }
-      } catch (error) {
-        console.error(error);
-        addToast(`The layoutId in the url could not be loaded. ${error.toString()}`, {
-          appearance: "error",
-        });
-      }
+    // Don't restore the layout if there's one specified in the app state url.
+    if (windowAppURLState()?.layoutId) {
+      return;
     }
 
     // Retreive the selected layout id from the user's profile. If there's no layout specified
@@ -279,7 +267,7 @@ export default function CurrentLayoutProvider({
       });
       await setSelectedLayoutId(newLayout.id);
     }
-  }, [getUserProfile, layoutManager, setSelectedLayoutId, addToast]);
+  }, [getUserProfile, layoutManager, setSelectedLayoutId]);
 
   const actions: ICurrentLayout["actions"] = useMemo(
     () => ({
