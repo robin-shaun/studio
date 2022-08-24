@@ -11,5 +11,9 @@
     "name": "Foxglove Technologies",
     "email": "support@foxglove.dev"
   },
-  "homepage": "https://foxglove.dev/"
+  "homepage": "https://foxglove.dev/",
+  "dependencies": {
+    "cbor-js": "0.1.0",
+    "eventemitter2": "6.4.7"
+  }
 }

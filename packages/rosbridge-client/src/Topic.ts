@@ -2,14 +2,20 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-/**
- * @fileoverview
- * @author Brandon Alexander - baalexander@gmail.com
- */
+import { EventEmitter2 } from "eventemitter2";
 
-const EventEmitter2 = require("eventemitter2").EventEmitter2;
+type Compression = "none" | "png" | "cbor" | "cbor-raw";
 
-const Message = require("./Message");
+type TopicOptions = {
+  name: string;
+  messageType: string;
+  latch?: boolean;
+  compression?: Compression;
+  throttle_rate?: number;
+  queue_length?: number;
+  queue_size?: number;
+  reconnect_on_close?: boolean;
+};
 
 /**
  * Publish and/or subscribe to a topic in ROS.
@@ -30,195 +36,207 @@ const Message = require("./Message");
  *   * queue_length - the queue length at bridge side used when subscribing (defaults to 0, no queueing).
  *   * reconnect_on_close - the flag to enable resubscription and readvertisement on close event(defaults to true).
  */
-function Topic(options) {
-  options = options || {};
-  this.ros = options.ros;
-  this.name = options.name;
-  this.messageType = options.messageType;
-  this.isAdvertised = false;
-  this.compression = options.compression || "none";
-  this.throttle_rate = options.throttle_rate || 0;
-  this.latch = options.latch || false;
-  this.queue_size = options.queue_size || 100;
-  this.queue_length = options.queue_length || 0;
-  this.reconnect_on_close =
-    options.reconnect_on_close !== undefined ? options.reconnect_on_close : true;
+class Topic extends EventEmitter2 {
+  private subscribeId?: string;
+  private name: string;
+  private messageType: string;
+  private latch: boolean;
+  private isAdvertised = false;
+  private compression: Compression;
+  private throttle_rate: number;
+  private queue_size: number;
+  private queue_length: number;
+  private reconnect_on_close: boolean;
+  private advertiseId?: string;
 
-  // Check for valid compression types
-  if (
-    this.compression &&
-    this.compression !== "png" &&
-    this.compression !== "cbor" &&
-    this.compression !== "cbor-raw" &&
-    this.compression !== "none"
-  ) {
-    this.emit(
-      "warning",
-      this.compression + " compression is not supported. No compression will be used.",
-    );
-    this.compression = "none";
-  }
+  public constructor(options: TopicOptions) {
+    super();
+    this.ros = options.ros;
+    this.name = options.name;
+    this.messageType = options.messageType;
+    this.isAdvertised = false;
+    this.compression = options.compression ?? "none";
+    this.throttle_rate = options.throttle_rate ?? 0;
+    this.latch = options.latch ?? false;
+    this.queue_size = options.queue_size ?? 100;
+    this.queue_length = options.queue_length ?? 0;
+    this.reconnect_on_close = options.reconnect_on_close ?? true;
 
-  // Check if throttle rate is negative
-  if (this.throttle_rate < 0) {
-    this.emit("warning", this.throttle_rate + " is not allowed. Set to 0");
-    this.throttle_rate = 0;
-  }
+    switch (this.compression) {
+      case "none":
+      case "png":
+      case "cbor":
+      case "cbor-raw":
+        break;
+      default:
+        this.emit(
+          "warning",
+          `${this.compression} compression is not supported. No compression will be used."`,
+        );
+        this.compression = "none";
+    }
 
-  const that = this;
-  if (this.reconnect_on_close) {
-    this.callForSubscribeAndAdvertise = function (message) {
-      that.ros.callOnConnection(message);
+    // Check if throttle rate is negative
+    if (this.throttle_rate < 0) {
+      this.emit("warning", `${this.throttle_rate} is not allowed. Reset to 0`);
+      this.throttle_rate = 0;
+    }
 
-      that.waitForReconnect = false;
-      that.reconnectFunc = function () {
-        if (!that.waitForReconnect) {
-          that.waitForReconnect = true;
-          that.ros.callOnConnection(message);
-          that.ros.once("connection", () => {
-            that.waitForReconnect = false;
-          });
-        }
+    const that = this;
+    if (this.reconnect_on_close) {
+      this.callForSubscribeAndAdvertise = function (message) {
+        that.ros.callOnConnection(message);
+
+        that.waitForReconnect = false;
+        that.reconnectFunc = function () {
+          if (!that.waitForReconnect) {
+            that.waitForReconnect = true;
+            that.ros.callOnConnection(message);
+            that.ros.once("connection", () => {
+              that.waitForReconnect = false;
+            });
+          }
+        };
+        that.ros.on("close", that.reconnectFunc);
       };
-      that.ros.on("close", that.reconnectFunc);
+    } else {
+      this.callForSubscribeAndAdvertise = this.ros.callOnConnection;
+    }
+
+    this._messageCallback = function (data) {
+      that.emit("message", new Message(data));
     };
-  } else {
-    this.callForSubscribeAndAdvertise = this.ros.callOnConnection;
   }
 
-  this._messageCallback = function (data) {
-    that.emit("message", new Message(data));
-  };
-}
-Topic.prototype.__proto__ = EventEmitter2.prototype;
+  /**
+   * Every time a message is published for the given topic, the callback
+   * will be called with the message object.
+   *
+   * @param callback - function with the following params:
+   *   * message - the published message
+   */
+  public subscribe(callback: (msg: unknown) => void): void {
+    if (typeof callback === "function") {
+      this.on("message", callback);
+    }
 
-/**
- * Every time a message is published for the given topic, the callback
- * will be called with the message object.
- *
- * @param callback - function with the following params:
- *   * message - the published message
- */
-Topic.prototype.subscribe = function (callback) {
-  if (typeof callback === "function") {
-    this.on("message", callback);
-  }
-
-  if (this.subscribeId) {
-    return;
-  }
-  this.ros.on(this.name, this._messageCallback);
-  this.subscribeId = "subscribe:" + this.name + ":" + ++this.ros.idCounter;
-
-  this.callForSubscribeAndAdvertise({
-    op: "subscribe",
-    id: this.subscribeId,
-    type: this.messageType,
-    topic: this.name,
-    compression: this.compression,
-    throttle_rate: this.throttle_rate,
-    queue_length: this.queue_length,
-  });
-};
-
-/**
- * Unregisters as a subscriber for the topic. Unsubscribing stop remove
- * all subscribe callbacks. To remove a call back, you must explicitly
- * pass the callback function in.
- *
- * @param callback - the optional callback to unregister, if
- *     * provided and other listeners are registered the topic won't
- *     * unsubscribe, just stop emitting to the passed listener
- */
-Topic.prototype.unsubscribe = function (callback) {
-  if (callback) {
-    this.off("message", callback);
-    // If there is any other callbacks still subscribed don't unsubscribe
-    if (this.listeners("message").length) {
+    if (this.subscribeId) {
       return;
     }
-  }
-  if (!this.subscribeId) {
-    return;
-  }
-  // Note: Don't call this.removeAllListeners, allow client to handle that themselves
-  this.ros.off(this.name, this._messageCallback);
-  if (this.reconnect_on_close) {
-    this.ros.off("close", this.reconnectFunc);
-  }
-  this.emit("unsubscribe");
-  this.ros.callOnConnection({
-    op: "unsubscribe",
-    id: this.subscribeId,
-    topic: this.name,
-  });
-  this.subscribeId = null;
-};
 
-/**
- * Registers as a publisher for the topic.
- */
-Topic.prototype.advertise = function () {
-  if (this.isAdvertised) {
-    return;
-  }
-  this.advertiseId = "advertise:" + this.name + ":" + ++this.ros.idCounter;
-  this.callForSubscribeAndAdvertise({
-    op: "advertise",
-    id: this.advertiseId,
-    type: this.messageType,
-    topic: this.name,
-    latch: this.latch,
-    queue_size: this.queue_size,
-  });
-  this.isAdvertised = true;
+    this.ros.on(this.name, callback);
+    this.subscribeId = `subscribe:${this.name}:${++this.ros.idCounter}`;
 
-  if (!this.reconnect_on_close) {
-    const that = this;
-    this.ros.on("close", () => {
-      that.isAdvertised = false;
+    this.callForSubscribeAndAdvertise({
+      op: "subscribe",
+      id: this.subscribeId,
+      type: this.messageType,
+      topic: this.name,
+      compression: this.compression,
+      throttle_rate: this.throttle_rate,
+      queue_length: this.queue_length,
     });
   }
-};
 
-/**
- * Unregisters as a publisher for the topic.
- */
-Topic.prototype.unadvertise = function () {
-  if (!this.isAdvertised) {
-    return;
+  /**
+   * Unregisters as a subscriber for the topic. Unsubscribing stop remove
+   * all subscribe callbacks. To remove a call back, you must explicitly
+   * pass the callback function in.
+   *
+   * @param callback - the optional callback to unregister, if
+   *     * provided and other listeners are registered the topic won't
+   *     * unsubscribe, just stop emitting to the passed listener
+   */
+  public unsubscribe(callback): void {
+    if (callback) {
+      this.off("message", callback);
+      // If there is any other callbacks still subscribed don't unsubscribe
+      if (this.listeners("message").length > 0) {
+        return;
+      }
+    }
+
+    if (!this.subscribeId) {
+      return;
+    }
+    // Note: Don't call this.removeAllListeners, allow client to handle that themselves
+    this.ros.off(this.name, this._messageCallback);
+    if (this.reconnect_on_close) {
+      this.ros.off("close", this.reconnectFunc);
+    }
+    this.emit("unsubscribe");
+    this.ros.callOnConnection({
+      op: "unsubscribe",
+      id: this.subscribeId,
+      topic: this.name,
+    });
+    this.subscribeId = null;
   }
-  if (this.reconnect_on_close) {
-    this.ros.off("close", this.reconnectFunc);
+
+  /**
+   * Registers as a publisher for the topic.
+   */
+  public advertise(): void {
+    if (this.isAdvertised) {
+      return;
+    }
+    this.advertiseId = `advertise:${this.name}:${++this.ros.idCounter}`;
+    this.callForSubscribeAndAdvertise({
+      op: "advertise",
+      id: this.advertiseId,
+      type: this.messageType,
+      topic: this.name,
+      latch: this.latch,
+      queue_size: this.queue_size,
+    });
+    this.isAdvertised = true;
+
+    if (!this.reconnect_on_close) {
+      this.ros.on("close", () => {
+        this.isAdvertised = false;
+      });
+    }
   }
-  this.emit("unadvertise");
-  this.ros.callOnConnection({
-    op: "unadvertise",
-    id: this.advertiseId,
-    topic: this.name,
-  });
-  this.isAdvertised = false;
-};
 
-/**
- * Publish the message.
- *
- * @param message - A ROSLIB.Message object.
- */
-Topic.prototype.publish = function (message) {
-  if (!this.isAdvertised) {
-    this.advertise();
+  /**
+   * Unregisters as a publisher for the topic.
+   */
+  public unadvertise(): void {
+    if (!this.isAdvertised) {
+      return;
+    }
+    if (this.reconnect_on_close) {
+      this.ros.off("close", this.reconnectFunc);
+    }
+    this.emit("unadvertise");
+    this.ros.callOnConnection({
+      op: "unadvertise",
+      id: this.advertiseId,
+      topic: this.name,
+    });
+    this.isAdvertised = false;
   }
 
-  this.ros.idCounter++;
-  const call = {
-    op: "publish",
-    id: "publish:" + this.name + ":" + this.ros.idCounter,
-    topic: this.name,
-    msg: message,
-    latch: this.latch,
-  };
-  this.ros.callOnConnection(call);
-};
+  /**
+   * Publish the message.
+   *
+   * @param message - A ROSLIB.Message object.
+   */
+  public publish(message: unknown): void {
+    if (!this.isAdvertised) {
+      this.advertise();
+    }
 
-module.exports = Topic;
+    this.ros.idCounter++;
+    const call = {
+      op: "publish",
+      id: `publish:${this.name}:${this.ros.idCounter}`,
+      topic: this.name,
+      msg: message,
+      latch: this.latch,
+    };
+    this.ros.callOnConnection(call);
+  }
+}
+
+export { Topic };

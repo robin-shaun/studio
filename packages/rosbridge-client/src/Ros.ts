@@ -2,15 +2,47 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-const assign = require("object-assign");
-const WebSocket = require("ws");
+import { EventEmitter2 } from "eventemitter2";
 
-const WorkerSocket = require("../util/workerSocket");
-const Service = require("./Service");
-const ServiceRequest = require("./ServiceRequest");
-const socketAdapter = require("./SocketAdapter.js");
+import { ITransport } from "./types";
 
-const EventEmitter2 = require("eventemitter2").EventEmitter2;
+type ServiceCallArgs = {
+  name: string;
+  serviceType: string;
+  payload?: unknown;
+};
+
+type ActionServersResponse = {
+  action_servers: string[];
+};
+
+type TopicsForTypeResponse = {
+  topics: string[];
+};
+
+type ServicesResponse = {
+  services: string[];
+};
+
+type NodesResponse = {
+  nodes: string[];
+};
+
+type GetParamNamesResponse = {
+  names: string[];
+};
+
+type TopicTypeResponse = {
+  type: string;
+};
+
+type ServiceTypeResponse = {
+  type: string;
+};
+
+type MessageDetailsResponse = {
+  typedefs: string;
+};
 
 /**
  * Manages connection to the server and all interactions with ROS.
@@ -25,692 +57,263 @@ const EventEmitter2 = require("eventemitter2").EventEmitter2;
  * @constructor
  * @param options - possible keys include: <br>
  *   * url (optional) - (can be specified later with `connect`) the WebSocket URL for rosbridge or the node server url to connect using socket.io (if socket.io exists in the page) <br>
- *   * groovyCompatibility - don't use interfaces that changed after the last groovy release or rosbridge_suite and related tools (defaults to true)
  *   * transportLibrary (optional) - one of 'websocket', 'workersocket' (default), 'socket.io' or RTCPeerConnection instance controlling how the connection is created in `connect`.
  *   * transportOptions (optional) - the options to use use when creating a connection. Currently only used if `transportLibrary` is RTCPeerConnection.
  */
-function Ros(options) {
-  options = options || {};
-  const that = this;
-  this.socket = null;
-  this.idCounter = 0;
-  this.isConnected = false;
-  this.transportLibrary = options.transportLibrary || "websocket";
-  this.transportOptions = options.transportOptions || {};
-  this._sendFunc = function (msg) {
-    that.sendEncodedMessage(msg);
-  };
+class Ros extends EventEmitter2 {
+  private transport: ITransport;
+  private idCounter = 0;
+  private isConnected = false;
 
-  if (typeof options.groovyCompatibility === "undefined") {
-    this.groovyCompatibility = true;
-  } else {
-    this.groovyCompatibility = options.groovyCompatibility;
+  public constructor(transport: ITransport) {
+    super();
+
+    this.transport = transport;
+
+    // Sets unlimited event listeners.
+    this.setMaxListeners(0);
   }
 
-  // Sets unlimited event listeners.
-  this.setMaxListeners(0);
+  /**
+   * Close the client and transport
+   */
+  public close(): void {
+    this.transport.close();
+  }
 
-  // begin by checking if a URL was given
-  if (options.url) {
-    this.connect(options.url);
+  public sendEncodedMessage(msg: string | Uint8Array): void {
+    // fixme - wait for onconnection?
+    if (!this.isConnected) {
+      throw new Error("not connected");
+    }
+
+    this.transport.send(msg);
+  }
+
+  /**
+   * Retrieves Action Servers in ROS as an array of string
+   */
+  public async getActionServers(): Promise<ActionServersResponse["action_servers"]> {
+    const result = await this.callService<ActionServersResponse>({
+      name: "/rosapi/action_servers",
+      serviceType: "rosapi/GetActionServers",
+    });
+
+    return result.action_servers;
+  }
+
+  /**
+   * Retrieves list of topics in ROS as an array.
+   */
+  public async getTopics(): Promise<string[]> {
+    return await this.callService<string[]>({
+      name: "/rosapi/topics",
+      serviceType: "rosapi/Topics",
+    });
+  }
+
+  /**
+   * Retrieves Topics in ROS as an array as specific type
+   *
+   * @param topicType topic type to find
+   */
+  public async getTopicsForType(topicType: string): Promise<string[]> {
+    const result = await this.callService<TopicsForTypeResponse>({
+      name: "/rosapi/topics_for_type",
+      serviceType: "rosapi/TopicsForType",
+      payload: {
+        type: topicType,
+      },
+    });
+
+    return result.topics;
+  }
+
+  /**
+   * Retrieves list of active service names in ROS.
+   */
+  public async getServices(): Promise<unknown> {
+    const result = await this.callService<ServicesResponse>({
+      name: "/rosapi/services",
+      serviceType: "rosapi/Services",
+    });
+
+    return result.services;
+  }
+
+  /**
+   * Retrieves list of services in ROS as an array as specific type
+   *
+   * @param serviceType service type to find
+   */
+  public async getServicesForType(serviceType: string): Promise<unknown> {
+    const result = await this.callService<ServicesResponse>({
+      name: "/rosapi/services_for_type",
+      serviceType: "rosapi/ServicesForType",
+      payload: {
+        type: serviceType,
+      },
+    });
+
+    return result.services;
+  }
+
+  /**
+   * Retrieves a detail of ROS service request.
+   *
+   * @param service name of service
+   */
+  public async getServiceRequestDetails(type: string): Promise<unknown> {
+    return await this.callService({
+      name: "/rosapi/service_request_details",
+      serviceType: "rosapi/ServiceRequestDetails",
+      payload: {
+        type,
+      },
+    });
+  }
+
+  /**
+   * Retrieves a detail of ROS service request.
+   *
+   * @param service name of service
+   */
+  public async getServiceResponseDetails(type: string): Promise<unknown> {
+    return await this.callService({
+      name: "/rosapi/service_response_details",
+      serviceType: "rosapi/ServiceResponseDetails",
+      payload: {
+        type,
+      },
+    });
+  }
+
+  /**
+   * Retrieves list of active node names in ROS.
+   */
+  public async getNodes(): Promise<unknown> {
+    const result = await this.callService<NodesResponse>({
+      name: "/rosapi/nodes",
+      serviceType: "rosapi/Nodes",
+    });
+
+    return result.nodes;
+  }
+
+  /**
+   * Retrieves list subscribed topics, publishing topics and services of a specific node
+   *
+   * @param node name of the node
+   */
+  public async getNodeDetails(node: string): Promise<unknown> {
+    return await this.callService({
+      name: "/rosapi/node_details",
+      serviceType: "rosapi/NodeDetails",
+      payload: {
+        node,
+      },
+    });
+  }
+
+  /**
+   * Retrieves list of param names from the ROS Parameter Server.
+   */
+  public async getParams(): Promise<GetParamNamesResponse["names"]> {
+    const result = await this.callService<GetParamNamesResponse>({
+      name: "/rosapi/get_param_names",
+      serviceType: "rosapi/GetParamNames",
+    });
+
+    return result.names;
+  }
+
+  /**
+   * Retrieves a type of ROS topic.
+   *
+   * @param topic name of the topic
+   */
+  public async getTopicType(topic: string): Promise<string> {
+    const result = await this.callService<TopicTypeResponse>({
+      name: "/rosapi/topic_type",
+      serviceType: "rosapi/TopicType",
+      payload: {
+        topic,
+      },
+    });
+
+    return result.type;
+  }
+
+  /**
+   * Retrieves a type of ROS service.
+   *
+   * @param service name of service:
+   */
+  public async getServiceType(service: string): Promise<string> {
+    const result = await this.callService<ServiceTypeResponse>({
+      name: "/rosapi/service_type",
+      serviceType: "rosapi/ServiceType",
+      payload: {
+        service,
+      },
+    });
+
+    return result.type;
+  }
+
+  /**
+   * Retrieves a detail of ROS message.
+   *
+   * @param message - String of a topic type
+   */
+  public async getMessageDetails(message: string): Promise<unknown> {
+    const result = await this.callService<MessageDetailsResponse>({
+      name: "/rosapi/message_details",
+      serviceType: "rosapi/MessageDetails",
+      payload: {
+        type: message,
+      },
+    });
+
+    return result.typedefs;
+  }
+
+  /**
+   * Retrieves list of topics and their associated type definitions.
+   */
+  public async getTopicsAndRawTypes(): Promise<unknown> {
+    return await this.callService({
+      name: "/rosapi/topics_and_raw_types",
+      serviceType: "rosapi/TopicsAndRawTypes",
+    });
+  }
+
+  private async callService<T = unknown>(args: ServiceCallArgs): Promise<T> {
+    const serviceCallId = `call_service:${args.name}:${++this.idCounter}`;
+
+    const result = new Promise((resolve, reject) => {
+      // fixme - transport?
+      this.once(serviceCallId, (message) => {
+        if (message.result != undefined && message.result === false) {
+          reject(message.values);
+        } else {
+          resolve(message.values);
+        }
+      });
+    });
+
+    const call = {
+      op: "call_service",
+      id: serviceCallId,
+      service: args.name,
+      type: args.serviceType,
+      args: args.payload,
+    };
+
+    this.sendEncodedMessage(JSON.stringify(call));
+
+    return (await result) as T;
   }
 }
 
-Ros.prototype.__proto__ = EventEmitter2.prototype;
-
-/**
- * Connect to the specified WebSocket.
- *
- * @param url - WebSocket URL or RTCDataChannel label for Rosbridge
- */
-Ros.prototype.connect = function (url) {
-  if (this.transportLibrary === "socket.io") {
-    this.socket = assign(io(url, { "force new connection": true }), socketAdapter(this));
-    this.socket.on("connect", this.socket.onopen);
-    this.socket.on("data", this.socket.onmessage);
-    this.socket.on("close", this.socket.onclose);
-    this.socket.on("error", this.socket.onerror);
-  } else if (this.transportLibrary.constructor.name === "RTCPeerConnection") {
-    this.socket = assign(
-      this.transportLibrary.createDataChannel(url, this.transportOptions),
-      socketAdapter(this),
-    );
-  } else if (this.transportLibrary === "websocket") {
-    if (!this.socket || this.socket.readyState === WebSocket.CLOSED) {
-      const sock = new WebSocket(url);
-      sock.binaryType = "arraybuffer";
-      this.socket = assign(sock, socketAdapter(this));
-    }
-  } else if (this.transportLibrary === "workersocket") {
-    this.socket = assign(new WorkerSocket(url), socketAdapter(this));
-  } else {
-    throw "Unknown transportLibrary: " + this.transportLibrary.toString();
-  }
-};
-
-/**
- * Disconnect from the WebSocket server.
- */
-Ros.prototype.close = function () {
-  if (this.socket) {
-    this.socket.close();
-  }
-};
-
-/**
- * Sends an authorization request to the server.
- *
- * @param mac - MAC (hash) string given by the trusted source.
- * @param client - IP of the client.
- * @param dest - IP of the destination.
- * @param rand - Random string given by the trusted source.
- * @param t - Time of the authorization request.
- * @param level - User level as a string given by the client.
- * @param end - End time of the client's session.
- */
-Ros.prototype.authenticate = function (mac, client, dest, rand, t, level, end) {
-  // create the request
-  const auth = {
-    op: "auth",
-    mac,
-    client,
-    dest,
-    rand,
-    t,
-    level,
-    end,
-  };
-  // send the request
-  this.callOnConnection(auth);
-};
-
-Ros.prototype.sendEncodedMessage = function (messageEncoded) {
-  let emitter = null;
-  const that = this;
-  if (this.transportLibrary === "socket.io") {
-    emitter = function (msg) {
-      that.socket.emit("operation", msg);
-    };
-  } else {
-    emitter = function (msg) {
-      that.socket.send(msg);
-    };
-  }
-
-  if (!this.isConnected) {
-    that.once("connection", () => {
-      emitter(messageEncoded);
-    });
-  } else {
-    emitter(messageEncoded);
-  }
-};
-
-/**
- * Sends the message over the WebSocket, but queues the message up if not yet
- * connected.
- */
-Ros.prototype.callOnConnection = function (message) {
-  if (this.transportOptions.encoder) {
-    this.transportOptions.encoder(message, this._sendFunc);
-  } else {
-    this._sendFunc(JSON.stringify(message));
-  }
-};
-
-/**
- * Sends a set_level request to the server
- *
- * @param level - Status level (none, error, warning, info)
- * @param id - Optional: Operation ID to change status level on
- */
-Ros.prototype.setStatusLevel = function (level, id) {
-  const levelMsg = {
-    op: "set_level",
-    level,
-    id,
-  };
-
-  this.callOnConnection(levelMsg);
-};
-
-/**
- * Retrieves Action Servers in ROS as an array of string
- *
- * @param callback function with params:
- *   * actionservers - Array of action server names
- * @param failedCallback - the callback function when the service call failed (optional). Params:
- *   * error - the error message reported by ROS
- */
-Ros.prototype.getActionServers = function (callback, failedCallback) {
-  const getActionServers = new Service({
-    ros: this,
-    name: "/rosapi/action_servers",
-    serviceType: "rosapi/GetActionServers",
-  });
-
-  const request = new ServiceRequest({});
-  if (typeof failedCallback === "function") {
-    getActionServers.callService(
-      request,
-      (result) => {
-        callback(result.action_servers);
-      },
-      (message) => {
-        failedCallback(message);
-      },
-    );
-  } else {
-    getActionServers.callService(request, (result) => {
-      callback(result.action_servers);
-    });
-  }
-};
-
-/**
- * Retrieves list of topics in ROS as an array.
- *
- * @param callback function with params:
- *   * topics - Array of topic names
- *   * types - Array of message type names
- * @param failedCallback - the callback function when the service call failed (optional). Params:
- *   * error - the error message reported by ROS
- */
-Ros.prototype.getTopics = function (callback, failedCallback) {
-  const topicsClient = new Service({
-    ros: this,
-    name: "/rosapi/topics",
-    serviceType: "rosapi/Topics",
-  });
-
-  const request = new ServiceRequest();
-  if (typeof failedCallback === "function") {
-    topicsClient.callService(
-      request,
-      (result) => {
-        callback(result);
-      },
-      (message) => {
-        failedCallback(message);
-      },
-    );
-  } else {
-    topicsClient.callService(request, (result) => {
-      callback(result);
-    });
-  }
-};
-
-/**
- * Retrieves Topics in ROS as an array as specific type
- *
- * @param topicType topic type to find
- * @param callback function with params:
- *   * topics - Array of topic names
- * @param failedCallback - the callback function when the service call failed (optional). Params:
- *   * error - the error message reported by ROS
- */
-Ros.prototype.getTopicsForType = function (topicType, callback, failedCallback) {
-  const topicsForTypeClient = new Service({
-    ros: this,
-    name: "/rosapi/topics_for_type",
-    serviceType: "rosapi/TopicsForType",
-  });
-
-  const request = new ServiceRequest({
-    type: topicType,
-  });
-  if (typeof failedCallback === "function") {
-    topicsForTypeClient.callService(
-      request,
-      (result) => {
-        callback(result.topics);
-      },
-      (message) => {
-        failedCallback(message);
-      },
-    );
-  } else {
-    topicsForTypeClient.callService(request, (result) => {
-      callback(result.topics);
-    });
-  }
-};
-
-/**
- * Retrieves list of active service names in ROS.
- *
- * @param callback - function with the following params:
- *   * services - array of service names
- * @param failedCallback - the callback function when the service call failed (optional). Params:
- *   * error - the error message reported by ROS
- */
-Ros.prototype.getServices = function (callback, failedCallback) {
-  const servicesClient = new Service({
-    ros: this,
-    name: "/rosapi/services",
-    serviceType: "rosapi/Services",
-  });
-
-  const request = new ServiceRequest();
-  if (typeof failedCallback === "function") {
-    servicesClient.callService(
-      request,
-      (result) => {
-        callback(result.services);
-      },
-      (message) => {
-        failedCallback(message);
-      },
-    );
-  } else {
-    servicesClient.callService(request, (result) => {
-      callback(result.services);
-    });
-  }
-};
-
-/**
- * Retrieves list of services in ROS as an array as specific type
- *
- * @param serviceType service type to find
- * @param callback function with params:
- *   * topics - Array of service names
- * @param failedCallback - the callback function when the service call failed (optional). Params:
- *   * error - the error message reported by ROS
- */
-Ros.prototype.getServicesForType = function (serviceType, callback, failedCallback) {
-  const servicesForTypeClient = new Service({
-    ros: this,
-    name: "/rosapi/services_for_type",
-    serviceType: "rosapi/ServicesForType",
-  });
-
-  const request = new ServiceRequest({
-    type: serviceType,
-  });
-  if (typeof failedCallback === "function") {
-    servicesForTypeClient.callService(
-      request,
-      (result) => {
-        callback(result.services);
-      },
-      (message) => {
-        failedCallback(message);
-      },
-    );
-  } else {
-    servicesForTypeClient.callService(request, (result) => {
-      callback(result.services);
-    });
-  }
-};
-
-/**
- * Retrieves a detail of ROS service request.
- *
- * @param service name of service:
- * @param callback - function with params:
- *   * type - String of the service type
- * @param failedCallback - the callback function when the service call failed (optional). Params:
- *   * error - the error message reported by ROS
- */
-Ros.prototype.getServiceRequestDetails = function (type, callback, failedCallback) {
-  const serviceTypeClient = new Service({
-    ros: this,
-    name: "/rosapi/service_request_details",
-    serviceType: "rosapi/ServiceRequestDetails",
-  });
-  const request = new ServiceRequest({
-    type,
-  });
-
-  if (typeof failedCallback === "function") {
-    serviceTypeClient.callService(
-      request,
-      (result) => {
-        callback(result);
-      },
-      (message) => {
-        failedCallback(message);
-      },
-    );
-  } else {
-    serviceTypeClient.callService(request, (result) => {
-      callback(result);
-    });
-  }
-};
-
-/**
- * Retrieves a detail of ROS service request.
- *
- * @param service name of service
- * @param callback - function with params:
- *   * type - String of the service type
- * @param failedCallback - the callback function when the service call failed (optional). Params:
- *   * error - the error message reported by ROS
- */
-Ros.prototype.getServiceResponseDetails = function (type, callback, failedCallback) {
-  const serviceTypeClient = new Service({
-    ros: this,
-    name: "/rosapi/service_response_details",
-    serviceType: "rosapi/ServiceResponseDetails",
-  });
-  const request = new ServiceRequest({
-    type,
-  });
-
-  if (typeof failedCallback === "function") {
-    serviceTypeClient.callService(
-      request,
-      (result) => {
-        callback(result);
-      },
-      (message) => {
-        failedCallback(message);
-      },
-    );
-  } else {
-    serviceTypeClient.callService(request, (result) => {
-      callback(result);
-    });
-  }
-};
-
-/**
- * Retrieves list of active node names in ROS.
- *
- * @param callback - function with the following params:
- *   * nodes - array of node names
- * @param failedCallback - the callback function when the service call failed (optional). Params:
- *   * error - the error message reported by ROS
- */
-Ros.prototype.getNodes = function (callback, failedCallback) {
-  const nodesClient = new Service({
-    ros: this,
-    name: "/rosapi/nodes",
-    serviceType: "rosapi/Nodes",
-  });
-
-  const request = new ServiceRequest();
-  if (typeof failedCallback === "function") {
-    nodesClient.callService(
-      request,
-      (result) => {
-        callback(result.nodes);
-      },
-      (message) => {
-        failedCallback(message);
-      },
-    );
-  } else {
-    nodesClient.callService(request, (result) => {
-      callback(result.nodes);
-    });
-  }
-};
-
-/**
- * Retrieves list subscribed topics, publishing topics and services of a specific node
- *
- * @param node name of the node:
- * @param callback - function with params:
- *   * publications - array of published topic names
- *   * subscriptions - array of subscribed topic names
- *   * services - array of service names hosted
- * @param failedCallback - the callback function when the service call failed (optional). Params:
- *   * error - the error message reported by ROS
- */
-Ros.prototype.getNodeDetails = function (node, callback, failedCallback) {
-  const nodesClient = new Service({
-    ros: this,
-    name: "/rosapi/node_details",
-    serviceType: "rosapi/NodeDetails",
-  });
-
-  const request = new ServiceRequest({
-    node,
-  });
-  if (typeof failedCallback === "function") {
-    nodesClient.callService(
-      request,
-      (result) => {
-        callback(result.subscribing, result.publishing, result.services);
-      },
-      (message) => {
-        failedCallback(message);
-      },
-    );
-  } else {
-    nodesClient.callService(request, (result) => {
-      callback(result);
-    });
-  }
-};
-
-/**
- * Retrieves list of param names from the ROS Parameter Server.
- *
- * @param callback function with params:
- *  * params - array of param names.
- * @param failedCallback - the callback function when the service call failed (optional). Params:
- *   * error - the error message reported by ROS
- */
-Ros.prototype.getParams = function (callback, failedCallback) {
-  const paramsClient = new Service({
-    ros: this,
-    name: "/rosapi/get_param_names",
-    serviceType: "rosapi/GetParamNames",
-  });
-  const request = new ServiceRequest();
-  if (typeof failedCallback === "function") {
-    paramsClient.callService(
-      request,
-      (result) => {
-        callback(result.names);
-      },
-      (message) => {
-        failedCallback(message);
-      },
-    );
-  } else {
-    paramsClient.callService(request, (result) => {
-      callback(result.names);
-    });
-  }
-};
-
-/**
- * Retrieves a type of ROS topic.
- *
- * @param topic name of the topic:
- * @param callback - function with params:
- *   * type - String of the topic type
- * @param failedCallback - the callback function when the service call failed (optional). Params:
- *   * error - the error message reported by ROS
- */
-Ros.prototype.getTopicType = function (topic, callback, failedCallback) {
-  const topicTypeClient = new Service({
-    ros: this,
-    name: "/rosapi/topic_type",
-    serviceType: "rosapi/TopicType",
-  });
-  const request = new ServiceRequest({
-    topic,
-  });
-
-  if (typeof failedCallback === "function") {
-    topicTypeClient.callService(
-      request,
-      (result) => {
-        callback(result.type);
-      },
-      (message) => {
-        failedCallback(message);
-      },
-    );
-  } else {
-    topicTypeClient.callService(request, (result) => {
-      callback(result.type);
-    });
-  }
-};
-
-/**
- * Retrieves a type of ROS service.
- *
- * @param service name of service:
- * @param callback - function with params:
- *   * type - String of the service type
- * @param failedCallback - the callback function when the service call failed (optional). Params:
- *   * error - the error message reported by ROS
- */
-Ros.prototype.getServiceType = function (service, callback, failedCallback) {
-  const serviceTypeClient = new Service({
-    ros: this,
-    name: "/rosapi/service_type",
-    serviceType: "rosapi/ServiceType",
-  });
-  const request = new ServiceRequest({
-    service,
-  });
-
-  if (typeof failedCallback === "function") {
-    serviceTypeClient.callService(
-      request,
-      (result) => {
-        callback(result.type);
-      },
-      (message) => {
-        failedCallback(message);
-      },
-    );
-  } else {
-    serviceTypeClient.callService(request, (result) => {
-      callback(result.type);
-    });
-  }
-};
-
-/**
- * Retrieves a detail of ROS message.
- *
- * @param message - String of a topic type
- * @param callback - function with params:
- *   * details - Array of the message detail
- * @param failedCallback - the callback function when the service call failed (optional). Params:
- *   * error - the error message reported by ROS
- */
-Ros.prototype.getMessageDetails = function (message, callback, failedCallback) {
-  const messageDetailClient = new Service({
-    ros: this,
-    name: "/rosapi/message_details",
-    serviceType: "rosapi/MessageDetails",
-  });
-  const request = new ServiceRequest({
-    type: message,
-  });
-
-  if (typeof failedCallback === "function") {
-    messageDetailClient.callService(
-      request,
-      (result) => {
-        callback(result.typedefs);
-      },
-      (message) => {
-        failedCallback(message);
-      },
-    );
-  } else {
-    messageDetailClient.callService(request, (result) => {
-      callback(result.typedefs);
-    });
-  }
-};
-
-/**
- * Decode a typedefs into a dictionary like `rosmsg show foo/bar`
- *
- * @param defs - array of type_def dictionary
- */
-Ros.prototype.decodeTypeDefs = function (defs) {
-  const that = this;
-
-  // calls itself recursively to resolve type definition using hints.
-  var decodeTypeDefsRec = function (theType, hints) {
-    const typeDefDict = {};
-    for (let i = 0; i < theType.fieldnames.length; i++) {
-      const arrayLen = theType.fieldarraylen[i];
-      const fieldName = theType.fieldnames[i];
-      const fieldType = theType.fieldtypes[i];
-      if (fieldType.indexOf("/") === -1) {
-        // check the fieldType includes '/' or not
-        if (arrayLen === -1) {
-          typeDefDict[fieldName] = fieldType;
-        } else {
-          typeDefDict[fieldName] = [fieldType];
-        }
-      } else {
-        // lookup the name
-        let sub = false;
-        for (let j = 0; j < hints.length; j++) {
-          if (hints[j].type.toString() === fieldType.toString()) {
-            sub = hints[j];
-            break;
-          }
-        }
-        if (sub) {
-          const subResult = decodeTypeDefsRec(sub, hints);
-          if (arrayLen === -1) {
-          } else {
-            typeDefDict[fieldName] = [subResult];
-          }
-        } else {
-          that.emit("error", "Cannot find " + fieldType + " in decodeTypeDefs");
-        }
-      }
-    }
-    return typeDefDict;
-  };
-
-  return decodeTypeDefsRec(defs[0], defs);
-};
-
-/**
- * Retrieves list of topics and their associated type definitions.
- *
- * @param callback function with params:
- *   * topics - Array of topic names
- *   * types - Array of message type names
- *   * typedefs_full_text - Array of full definitions of message types, similar to `gendeps --cat`
- * @param failedCallback - the callback function when the service call failed (optional). Params:
- *   * error - the error message reported by ROS
- *
- */
-Ros.prototype.getTopicsAndRawTypes = function (callback, failedCallback) {
-  const topicsAndRawTypesClient = new Service({
-    ros: this,
-    name: "/rosapi/topics_and_raw_types",
-    serviceType: "rosapi/TopicsAndRawTypes",
-  });
-
-  const request = new ServiceRequest();
-  if (typeof failedCallback === "function") {
-    topicsAndRawTypesClient.callService(
-      request,
-      (result) => {
-        callback(result);
-      },
-      (message) => {
-        failedCallback(message);
-      },
-    );
-  } else {
-    topicsAndRawTypesClient.callService(request, (result) => {
-      callback(result);
-    });
-  }
-};
-
-module.exports = Ros;
+export { Ros };

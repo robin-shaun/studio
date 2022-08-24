@@ -2,5 +2,9 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-export * from "./Ros";
-export * from "./types";
+interface ITransport {
+  close(): void;
+  send(data: string | Uint8Array): void;
+}
+
+export type { ITransport };
