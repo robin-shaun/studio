@@ -12,12 +12,12 @@
 //   You may not use this file except in compliance with the License.
 
 import { isEqual, sortBy, transform } from "lodash";
-import roslib from "roslib";
 import { v4 as uuidv4 } from "uuid";
 
 import { debouncePromise } from "@foxglove/den/async";
 import { filterMap } from "@foxglove/den/collection";
 import Log from "@foxglove/log";
+import { RosbridgeClient } from "@foxglove/rosbridge-client";
 import { parse as parseMessageDefinition } from "@foxglove/rosmsg";
 import { LazyMessageReader } from "@foxglove/rosmsg-serialization";
 import { MessageReader as ROS2MessageReader } from "@foxglove/rosmsg2-serialization";
@@ -84,7 +84,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 // unmarshalls into plain JS objects.
 export default class RosbridgePlayer implements Player {
   private _url: string; // WebSocket URL.
-  private _rosClient?: roslib.Ros; // The roslibjs client when we're connected.
+  private _rosClient?: RosbridgeClient;
   private _id: string = uuidv4(); // Unique ID for this player.
   private _isRefreshing = false; // True if currently refreshing the node graph.
   private _listener?: (arg0: PlayerState) => Promise<void>; // Listener for _emitState().
@@ -149,7 +149,7 @@ export default class RosbridgePlayer implements Player {
     log.info(`Opening connection to ${this._url}`);
 
     // `workersocket` will open the actual WebSocket connection in a WebWorker.
-    const rosClient = new roslib.Ros({ url: this._url, transportLibrary: "workersocket" });
+    const rosClient = new RosbridgeClient({ url: this._url });
 
     rosClient.on("connection", () => {
       log.info(`Connected to ${this._url}`);
@@ -234,11 +234,7 @@ export default class RosbridgePlayer implements Player {
     }, 5000);
 
     try {
-      const result = await new Promise<{
-        topics: string[];
-        types: string[];
-        typedefs_full_text: string[];
-      }>((resolve, reject) => rosClient.getTopicsAndRawTypes(resolve, reject));
+      const result = await rosClient.getTopicsAndRawTypes();
 
       clearTimeout(topicsStallWarningTimeout);
       this._problems.removeProblem("topicsAndRawTypesTimeout");
@@ -423,9 +419,7 @@ export default class RosbridgePlayer implements Player {
 
   public close(): void {
     this._closed = true;
-    if (this._rosClient) {
-      this._rosClient.close();
-    }
+    this._rosClient?.close();
     if (this._emitTimer != undefined) {
       clearTimeout(this._emitTimer);
       this._emitTimer = undefined;
@@ -457,11 +451,7 @@ export default class RosbridgePlayer implements Player {
       if (this._topicSubscriptions.has(topicName)) {
         continue;
       }
-      const topic = new roslib.Topic({
-        ros: this._rosClient,
-        name: topicName,
-        compression: "cbor-raw",
-      });
+
       const availTopic = availableTopicsByTopicName[topicName];
       if (!availTopic) {
         continue;
@@ -474,6 +464,18 @@ export default class RosbridgePlayer implements Player {
       }
 
       const problemId = `message:${topicName}`;
+
+      const topicHandle = this._rosClient.topic(topicName, "cbor-raw");
+      topicHandle.on("message", () => {});
+      topicHandle.subscribe();
+
+      /*
+      const topic = new roslib.Topic({
+        ros: this._rosClient,
+        name: topicName,
+        compression: "cbor-raw",
+      });
+
       topic.subscribe((message) => {
         if (!this._providerTopics) {
           return;
@@ -555,6 +557,7 @@ export default class RosbridgePlayer implements Player {
 
         this._emitState();
       });
+      */
       this._topicSubscriptions.set(topicName, topic);
     }
 
@@ -607,12 +610,8 @@ export default class RosbridgePlayer implements Player {
     }
 
     const rosClient = this._rosClient;
-    const serviceTypePromise = new Promise<string>((resolve, reject) => {
-      rosClient.getServiceType(service, resolve, reject);
-    });
-
+    const serviceTypePromise = rosClient.getServiceType(service);
     this._serviceTypeCache.set(service, serviceTypePromise);
-
     return await serviceTypePromise;
   }
 
@@ -627,20 +626,10 @@ export default class RosbridgePlayer implements Player {
 
     const serviceType = await this.getServiceType(service);
 
-    // Create a proxy object for dispatching our service call
-    const proxy = new roslib.Service({
-      ros: this._rosClient,
+    return this._rosClient.callService({
       name: service,
       serviceType,
-    });
-
-    // Send the service request
-    return await new Promise<Record<string, unknown>>((resolve, reject) => {
-      proxy.callService(
-        request,
-        (response: Record<string, unknown>) => resolve(response),
-        (error: Error) => reject(error),
-      );
+      payload: request,
     });
   }
 
@@ -675,6 +664,9 @@ export default class RosbridgePlayer implements Player {
     }
 
     for (const { topic, datatype } of this._advertisements) {
+      // fixme - roslib.Topic handles calling advertise before publishing any messages
+      this._rosClient.topic(topic, datatype);
+
       this._topicPublishers.set(
         topic,
         new roslib.Topic({
@@ -708,26 +700,20 @@ export default class RosbridgePlayer implements Player {
     }
 
     try {
+      const rosClient = this._rosClient;
+      if (!rosClient) {
+        return;
+      }
       this._isRefreshing = true;
 
-      const nodes = await new Promise<string[]>((resolve, reject) => {
-        this._rosClient?.getNodes((fetchedNodes) => resolve(fetchedNodes), reject);
-      });
-
+      const nodes = await rosClient.getNodes();
       const promises = nodes.map(async (node) => {
-        return await new Promise<RosNodeDetails>((resolve, reject) => {
-          this._rosClient?.getNodeDetails(
-            node,
-            (subscriptions, publications, services) => {
-              resolve({
-                publications: { node, values: publications },
-                services: { node, values: services },
-                subscriptions: { node, values: subscriptions },
-              });
-            },
-            reject,
-          );
-        });
+        const { subscriptions, publications, services } = await rosClient.getNodeDetails(node);
+        return {
+          publications: { node, values: publications },
+          services: { node, values: services },
+          subscriptions: { node, values: subscriptions },
+        };
       });
 
       const results = await Promise.allSettled(promises);

@@ -60,7 +60,7 @@ type MessageDetailsResponse = {
  *   * transportLibrary (optional) - one of 'websocket', 'workersocket' (default), 'socket.io' or RTCPeerConnection instance controlling how the connection is created in `connect`.
  *   * transportOptions (optional) - the options to use use when creating a connection. Currently only used if `transportLibrary` is RTCPeerConnection.
  */
-class Ros extends EventEmitter2 {
+class RosbridgeClient extends EventEmitter2 {
   private transport: ITransport;
   private idCounter = 0;
   private isConnected = false;
@@ -316,4 +316,4 @@ class Ros extends EventEmitter2 {
   }
 }
 
-export { Ros };
+export { RosbridgeClient };
