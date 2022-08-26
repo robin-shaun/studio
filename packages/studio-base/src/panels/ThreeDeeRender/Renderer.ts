@@ -908,7 +908,7 @@ export class Renderer extends EventEmitter<RendererEvents> {
 
   private frameHandler = (currentTime: bigint): void => {
     this.currentTime = currentTime;
-    this._updateFrames();
+    this._updateFrames(currentTime);
     this._updateResolution();
 
     this.gl.clear();
@@ -1109,7 +1109,7 @@ export class Renderer extends EventEmitter<RendererEvents> {
   /** Tracks the number of frames so we can recompute the defaultFrameId when frames are added. */
   private _lastTransformFrameCount = 0;
 
-  private _updateFrames(): void {
+  private _updateFrames(currentTime: bigint): void {
     if (
       this.followFrameId != undefined &&
       this.renderFrameId !== this.followFrameId &&
@@ -1171,6 +1171,17 @@ export class Renderer extends EventEmitter<RendererEvents> {
     }
 
     this.settings.errors.clearPath(FOLLOW_TF_PATH);
+
+    if (this.followMode !== "follow" && !this.unfollowPoseSnapshot) {
+      // Snapshot the current pose of the render frame in the fixed frame
+      this.unfollowPoseSnapshot = makePose();
+      fixedFrame.applyLocal(
+        this.unfollowPoseSnapshot,
+        this.unfollowPoseSnapshot,
+        frame,
+        currentTime,
+      );
+    }
   }
 
   private _updateResolution(): void {
