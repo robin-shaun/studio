@@ -6,7 +6,7 @@ import { cloneDeep, round, set } from "lodash";
 
 import { SettingsTreeAction } from "@foxglove/studio";
 
-import { Renderer, RendererConfig } from "../Renderer";
+import { FollowMode, Renderer, RendererConfig } from "../Renderer";
 import { SceneExtension } from "../SceneExtension";
 import { SettingsTreeEntry } from "../SettingsManager";
 import { DEFAULT_CAMERA_STATE } from "../camera";
@@ -77,6 +77,13 @@ export class CoreSettings extends SceneExtension {
     );
     const followTfError = this.renderer.settings.errors.errors.errorAtPath(["general", "followTf"]);
 
+    const followModeOptions = [
+      { label: "Follow", value: "follow" },
+      { label: "Follow Orientation", value: "follow-orientation" },
+      { label: "Stationary", value: "no-follow" },
+    ];
+    const followModeValue = this.renderer.followMode;
+
     return [
       {
         path: ["general"],
@@ -90,6 +97,13 @@ export class CoreSettings extends SceneExtension {
               options: followTfOptions,
               value: followTfValue,
               error: followTfError,
+            },
+            followMode: {
+              label: "Follow Mode",
+              help: "Toggle between keeping the camera stationary relative to the Display Frame or Root Frame.",
+              input: "select",
+              options: followModeOptions,
+              value: followModeValue,
             },
           },
           defaultExpansionState: "expanded",
@@ -281,6 +295,15 @@ export class CoreSettings extends SceneExtension {
 
         this.renderer.followFrameId = followTf;
         this.renderer.settings.errors.clearPath(["general", "followTf"]);
+      } else if (path[1] === "followMode") {
+        const followMode = value as FollowMode;
+        // Update the configuration. This is done manually since followMode is at the top level of
+        // config, not under `general`
+        this.renderer.updateConfig((draft) => {
+          draft.followMode = followMode;
+        });
+
+        this.renderer.followMode = followMode;
       }
     } else if (category === "scene") {
       if (path[1] === "cameraState") {

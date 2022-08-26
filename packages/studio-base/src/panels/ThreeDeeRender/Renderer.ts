@@ -68,7 +68,7 @@ import {
   Vector3,
 } from "./ros";
 import { BaseSettings, CustomLayerSettings, SelectEntry, SubscriptionType } from "./settings";
-import { Transform, TransformTree } from "./transforms";
+import { makePose, Pose, Transform, TransformTree } from "./transforms";
 
 const log = Logger.getLogger(__filename);
 
@@ -95,11 +95,15 @@ export type RendererEvents = {
   configChange: (renderer: Renderer) => void;
 };
 
+export type FollowMode = "follow" | "follow-orientation" | "no-follow";
+
 export type RendererConfig = {
   /** Camera settings for the currently rendering scene */
   cameraState: CameraState;
   /** Coordinate frameId of the rendering frame */
   followTf: string | undefined;
+  /** Camera follow mode */
+  followMode: FollowMode;
   scene: {
     /** Show rendering metrics in a DOM overlay */
     enableStats?: boolean;
@@ -257,6 +261,9 @@ export class Renderer extends EventEmitter<RendererEvents> {
   private orthographicCamera: THREE.OrthographicCamera;
   private aspect: number;
   private controls: OrbitControls;
+  public followMode: FollowMode;
+  // The pose of the render frame in the fixed frame when following was disabled
+  private unfollowPoseSnapshot: Pose | undefined;
 
   // Are we connected to a ROS data source? Normalize coordinate frames if so by
   // stripping any leading "/" prefix. See `normalizeFrameId()` for details.
@@ -379,6 +386,7 @@ export class Renderer extends EventEmitter<RendererEvents> {
     this.scene.add(this.selectionBackdrop);
 
     this.followFrameId = config.followTf;
+    this.followMode = config.followMode;
 
     const samples = msaaSamples(this.gl.capabilities);
     const renderSize = this.gl.getDrawingBufferSize(tempVec2);
