@@ -17,7 +17,10 @@ import { v4 as uuidv4 } from "uuid";
 import { debouncePromise } from "@foxglove/den/async";
 import { filterMap } from "@foxglove/den/collection";
 import Log from "@foxglove/log";
-import { RosbridgeClient } from "@foxglove/rosbridge-client";
+import {
+  RosbridgeClient,
+  WebsocketTransport as RosbridgeWebSocketTransport,
+} from "@foxglove/rosbridge-client";
 import { parse as parseMessageDefinition } from "@foxglove/rosmsg";
 import { LazyMessageReader } from "@foxglove/rosmsg-serialization";
 import { MessageReader as ROS2MessageReader } from "@foxglove/rosmsg2-serialization";
@@ -100,13 +103,9 @@ export default class RosbridgePlayer implements Player {
   } = {};
   private _start?: Time; // The time at which we started playing.
   private _clockTime?: Time; // The most recent published `/clock` time, if available
-  // active subscriptions
-  private _topicSubscriptions = new Map<string, roslib.Topic>();
   private _requestedSubscriptions: SubscribePayload[] = []; // Requested subscriptions by setSubscriptions()
   private _parsedMessages: MessageEvent<unknown>[] = []; // Queue of messages that we'll send in next _emitState() call.
   private _requestTopicsTimeout?: ReturnType<typeof setTimeout>; // setTimeout() handle for _requestTopics().
-  // active publishers for the current connection
-  private _topicPublishers = new Map<string, roslib.Topic>();
   // which topics we want to advertise to other nodes
   private _advertisements: AdvertiseOptions[] = [];
   private _parsedTopics: Set<string> = new Set();
@@ -148,10 +147,9 @@ export default class RosbridgePlayer implements Player {
     this._problems.removeProblem("rosbridge:connection-failed");
     log.info(`Opening connection to ${this._url}`);
 
-    // `workersocket` will open the actual WebSocket connection in a WebWorker.
-    const rosClient = new RosbridgeClient({ url: this._url });
+    const rosClient = new RosbridgeClient(new RosbridgeWebSocketTransport(this._url));
 
-    rosClient.on("connection", () => {
+    rosClient.on("open", () => {
       log.info(`Connected to ${this._url}`);
       if (this._closed) {
         return;
@@ -165,14 +163,12 @@ export default class RosbridgePlayer implements Player {
     });
 
     rosClient.on("error", (err) => {
-      if (err) {
-        this._problems.addProblem("rosbridge:error", {
-          severity: "warn",
-          message: "Rosbridge error",
-          error: err,
-        });
-        this._emitState();
-      }
+      this._problems.addProblem("rosbridge:error", {
+        severity: "warn",
+        message: "Rosbridge error",
+        error: err,
+      });
+      this._emitState();
     });
 
     rosClient.on("close", () => {
@@ -181,12 +177,8 @@ export default class RosbridgePlayer implements Player {
       if (this._requestTopicsTimeout) {
         clearTimeout(this._requestTopicsTimeout);
       }
-      for (const [topicName, topic] of this._topicSubscriptions) {
-        topic.unsubscribe();
-        this._topicSubscriptions.delete(topicName);
-      }
-      rosClient.close(); // ensure the underlying worker is cleaned up
-      delete this._rosClient;
+
+      this._rosClient = undefined;
 
       this._problems.addProblem("rosbridge:connection-failed", {
         severity: "error",
@@ -198,6 +190,10 @@ export default class RosbridgePlayer implements Player {
 
       // Try connecting again.
       setTimeout(this._open, 3000);
+    });
+
+    rosClient.on("message", (msg) => {
+      this.onMessage(msg);
     });
   };
 
@@ -448,9 +444,12 @@ export default class RosbridgePlayer implements Player {
 
     // Subscribe to all topics that we aren't subscribed to yet.
     for (const topicName of topicNames) {
+      // fixme??
+      /*
       if (this._topicSubscriptions.has(topicName)) {
         continue;
       }
+      */
 
       const availTopic = availableTopicsByTopicName[topicName];
       if (!availTopic) {
@@ -463,105 +462,15 @@ export default class RosbridgePlayer implements Player {
         continue;
       }
 
-      const problemId = `message:${topicName}`;
-
-      const topicHandle = this._rosClient.topic(topicName, "cbor-raw");
-      topicHandle.on("message", () => {});
-      topicHandle.subscribe();
-
-      /*
-      const topic = new roslib.Topic({
-        ros: this._rosClient,
-        name: topicName,
-        compression: "cbor-raw",
+      this._rosClient.subscribe(topicName, {
+        datatype,
+        serialization: "cbor-raw",
       });
-
-      topic.subscribe((message) => {
-        if (!this._providerTopics) {
-          return;
-        }
-        try {
-          const buffer = (message as { bytes: ArrayBuffer }).bytes;
-          const bytes = new Uint8Array(buffer);
-
-          // This conditional can be removed when the ROS2 deserializer supports size()
-          if (messageReader instanceof LazyMessageReader) {
-            const msgSize = messageReader.size(bytes);
-            if (msgSize > bytes.byteLength) {
-              this._problems.addProblem(problemId, {
-                severity: "error",
-                message: `Message buffer not large enough on ${topicName}`,
-                error: new Error(
-                  `Cannot read ${msgSize} byte message from ${bytes.byteLength} byte buffer`,
-                ),
-              });
-              this._emitState();
-              return;
-            }
-          }
-
-          const innerMessage = messageReader.readMessage(bytes);
-
-          // handle clock messages before choosing receiveTime so the clock can set its own receive time
-          if (isClockMessage(topicName, innerMessage)) {
-            const time = innerMessage.clock;
-            const seconds = toSec(innerMessage.clock);
-            if (!isNaN(seconds)) {
-              if (this._clockTime == undefined) {
-                this._start = time;
-              }
-
-              this._clockTime = time;
-            }
-          }
-          const receiveTime = this._getCurrentTime();
-
-          if (!this._hasReceivedMessage) {
-            this._hasReceivedMessage = true;
-            this._metricsCollector.recordTimeToFirstMsgs();
-          }
-
-          if (this._parsedTopics.has(topicName)) {
-            const msg: MessageEvent<unknown> = {
-              topic: topicName,
-              receiveTime,
-              message: innerMessage,
-              sizeInBytes: bytes.byteLength,
-            };
-            this._parsedMessages.push(msg);
-          }
-          this._problems.removeProblem(problemId);
-
-          // Update the message count for this topic
-          let stats = this._providerTopicsStats.get(topicName);
-          if (this._topicSubscriptions.has(topicName)) {
-            if (!stats) {
-              stats = { numMessages: 0 };
-              this._providerTopicsStats.set(topicName, stats);
-            }
-            stats.numMessages++;
-            stats.firstMessageTime ??= receiveTime;
-            if (stats.lastMessageTime == undefined) {
-              stats.lastMessageTime = receiveTime;
-            } else if (isGreaterThan(receiveTime, stats.lastMessageTime)) {
-              stats.lastMessageTime = receiveTime;
-            }
-          }
-        } catch (error) {
-          this._problems.addProblem(problemId, {
-            severity: "error",
-            message: `Failed to parse message on ${topicName}`,
-            error,
-          });
-        }
-
-        this._emitState();
-      });
-      */
-      this._topicSubscriptions.set(topicName, topic);
     }
 
     // Unsubscribe from topics that we are subscribed to but shouldn't be.
+    // fixme - requires tracking what topics we are subscribed to
+    /*
     for (const [topicName, topic] of this._topicSubscriptions) {
       if (!topicNames.includes(topicName)) {
         topic.unsubscribe();
@@ -571,9 +480,12 @@ export default class RosbridgePlayer implements Player {
         this._providerTopicsStats.delete(topicName);
       }
     }
+    */
   }
 
   public setPublishers(publishers: AdvertiseOptions[]): void {
+    // fixme - implement
+    /*
     // Since `setPublishers` is rarely called, we can get away with just throwing away the old
     // Roslib.Topic objects and creating new ones.
     for (const publisher of this._topicPublishers.values()) {
@@ -582,6 +494,7 @@ export default class RosbridgePlayer implements Player {
     this._topicPublishers.clear();
     this._advertisements = publishers;
     this._setupPublishers();
+    */
   }
 
   public setParameter(_key: string, _value: ParameterValue): void {
@@ -589,6 +502,8 @@ export default class RosbridgePlayer implements Player {
   }
 
   public publish({ topic, msg }: PublishPayload): void {
+    // fixme - implement
+    /*
     const publisher = this._topicPublishers.get(topic);
     if (!publisher) {
       throw new Error(
@@ -596,6 +511,114 @@ export default class RosbridgePlayer implements Player {
       );
     }
     publisher.publish(msg);
+    */
+  }
+
+  private onMessage(message: { topic: string; data: unknown }): void {
+    console.log("rosbridge player msg", message);
+
+    const topicName = message.topic;
+    const problemId = `message:${topicName}`;
+
+    // fixme - don't call getTopicsByTopicName every message this is dumb
+    // we should be storing the cache of message reader by topic
+    const availableTopicsByTopicName = getTopicsByTopicName(this._providerTopics ?? []);
+
+    const availTopic = availableTopicsByTopicName[topicName];
+    if (!availTopic) {
+      console.warn("no topic");
+      // fixme - problem
+      return;
+    }
+
+    const { datatype } = availTopic;
+    const messageReader = this._messageReadersByDatatype[datatype];
+    if (!messageReader) {
+      console.warn("no reader");
+
+      // fixme - problem
+      return;
+    }
+
+    try {
+      const data = message.data as { bytes?: ArrayBufferView; sec: number; nsec: number };
+      const bytes = data.bytes;
+      if (!ArrayBuffer.isView(bytes)) {
+        console.warn("not a view");
+        // fixme - set problem
+        return;
+      }
+
+      // This conditional can be removed when the ROS2 deserializer supports size()
+      if (messageReader instanceof LazyMessageReader) {
+        const msgSize = messageReader.size(bytes);
+        if (msgSize > bytes.byteLength) {
+          this._problems.addProblem(problemId, {
+            severity: "error",
+            message: `Message buffer not large enough on ${topicName}`,
+            error: new Error(
+              `Cannot read ${msgSize} byte message from ${bytes.byteLength} byte buffer`,
+            ),
+          });
+          this._emitState();
+          return;
+        }
+      }
+
+      const innerMessage = messageReader.readMessage(bytes);
+
+      // handle clock messages before choosing receiveTime so the clock can set its own receive time
+      if (isClockMessage(topicName, innerMessage)) {
+        const time = innerMessage.clock;
+        const seconds = toSec(innerMessage.clock);
+        if (!isNaN(seconds)) {
+          if (this._clockTime == undefined) {
+            this._start = time;
+          }
+
+          this._clockTime = time;
+        }
+      }
+      const receiveTime = this._getCurrentTime();
+
+      if (!this._hasReceivedMessage) {
+        this._hasReceivedMessage = true;
+        this._metricsCollector.recordTimeToFirstMsgs();
+      }
+
+      if (this._parsedTopics.has(topicName)) {
+        const msg: MessageEvent<unknown> = {
+          topic: topicName,
+          receiveTime,
+          message: innerMessage,
+          sizeInBytes: bytes.byteLength,
+        };
+        this._parsedMessages.push(msg);
+      }
+      this._problems.removeProblem(problemId);
+
+      // Update the message count for this topic
+      let stats = this._providerTopicsStats.get(topicName);
+      if (!stats) {
+        stats = { numMessages: 0 };
+        this._providerTopicsStats.set(topicName, stats);
+      }
+      stats.numMessages++;
+      stats.firstMessageTime ??= receiveTime;
+      if (stats.lastMessageTime == undefined) {
+        stats.lastMessageTime = receiveTime;
+      } else if (isGreaterThan(receiveTime, stats.lastMessageTime)) {
+        stats.lastMessageTime = receiveTime;
+      }
+    } catch (error) {
+      this._problems.addProblem(problemId, {
+        severity: "error",
+        message: `Failed to parse message on ${topicName}`,
+        error,
+      });
+    }
+
+    this._emitState();
   }
 
   // Query the type name for this service. Cache the query to avoid looking it up again.
@@ -626,7 +649,7 @@ export default class RosbridgePlayer implements Player {
 
     const serviceType = await this.getServiceType(service);
 
-    return this._rosClient.callService({
+    return await this._rosClient.callService({
       name: service,
       serviceType,
       payload: request,
@@ -664,18 +687,10 @@ export default class RosbridgePlayer implements Player {
     }
 
     for (const { topic, datatype } of this._advertisements) {
-      // fixme - roslib.Topic handles calling advertise before publishing any messages
-      this._rosClient.topic(topic, datatype);
-
-      this._topicPublishers.set(
-        topic,
-        new roslib.Topic({
-          ros: this._rosClient,
-          name: topic,
-          messageType: datatype,
-          queue_size: 0,
-        }),
-      );
+      this._rosClient.advertise(topic, {
+        datatype,
+        queueSize: 0,
+      });
     }
   }
 
@@ -708,11 +723,11 @@ export default class RosbridgePlayer implements Player {
 
       const nodes = await rosClient.getNodes();
       const promises = nodes.map(async (node) => {
-        const { subscriptions, publications, services } = await rosClient.getNodeDetails(node);
+        const { subscribing, publishing, services } = await rosClient.getNodeDetails(node);
         return {
-          publications: { node, values: publications },
+          publications: { node, values: publishing },
           services: { node, values: services },
-          subscriptions: { node, values: subscriptions },
+          subscriptions: { node, values: subscribing },
         };
       });
 
@@ -726,6 +741,7 @@ export default class RosbridgePlayer implements Player {
 
       this._emitState();
     } catch (error) {
+      log.error(error);
       this._problems.addProblem("requestTopics:system-state", {
         severity: "error",
         message: "Failed to fetch node details from rosbridge",

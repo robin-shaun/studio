@@ -15,6 +15,6 @@
   "homepage": "https://foxglove.dev/",
   "dependencies": {
     "cbor-js": "0.1.0",
-    "eventemitter2": "6.4.7"
+    "eventemitter3": "4.0.7"
   }
 }

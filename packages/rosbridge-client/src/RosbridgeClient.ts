@@ -2,7 +2,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { EventEmitter2 } from "eventemitter2";
+import { EventEmitter, EventNames, EventListener } from "eventemitter3";
 
 import { ITransport } from "./types";
 
@@ -44,6 +44,30 @@ type MessageDetailsResponse = {
   typedefs: string;
 };
 
+type GetTopicsAndRawTypesResponse = {
+  topics: string[];
+  types: string[];
+  typedefs_full_text: string[];
+};
+
+type GetNodeDetailsResponse = {
+  subscribing: string[];
+  publishing: string[];
+  services: string[];
+};
+
+type Message = {
+  topic: string;
+  data: unknown;
+};
+
+type EventTypes = {
+  open: () => void;
+  error: (error: Error) => void;
+  close: () => void;
+  message: (event: Message) => void;
+};
+
 /**
  * Manages connection to the server and all interactions with ROS.
  *
@@ -60,18 +84,79 @@ type MessageDetailsResponse = {
  *   * transportLibrary (optional) - one of 'websocket', 'workersocket' (default), 'socket.io' or RTCPeerConnection instance controlling how the connection is created in `connect`.
  *   * transportOptions (optional) - the options to use use when creating a connection. Currently only used if `transportLibrary` is RTCPeerConnection.
  */
-class RosbridgeClient extends EventEmitter2 {
+class RosbridgeClient {
+  private emitter = new EventEmitter<EventTypes>();
   private transport: ITransport;
   private idCounter = 0;
-  private isConnected = false;
+  private waitingServiceRequests = new Map<
+    string,
+    { resolve: (value: unknown) => void; reject: (err: Error) => void }
+  >();
 
   public constructor(transport: ITransport) {
-    super();
-
     this.transport = transport;
 
-    // Sets unlimited event listeners.
-    this.setMaxListeners(0);
+    this.transport.on("open", () => {
+      this.emitter.emit("open");
+    });
+
+    this.transport.on("error", (err) => {
+      this.emitter.emit("error", err);
+    });
+
+    this.transport.on("close", () => {
+      // fixme - should this resolve the pending promises? yes
+      // should this reject? unclear...
+      for (const [_, value] of this.waitingServiceRequests) {
+        value.reject(new Error("connection closed"));
+      }
+
+      this.emitter.emit("close");
+    });
+
+    this.transport.on("message", (msg) => {
+      // fixme - handle status messages that produce errors - this is how rosbridge tells us about errors
+
+      console.log("TRNASPORT MESSAGE", msg);
+      switch (msg.op) {
+        case "service_response": {
+          const waitingService = this.waitingServiceRequests.get(msg.id);
+          this.waitingServiceRequests.delete(msg.id);
+          if (!waitingService) {
+            console.warn(`Received service response for unknown request id: ${msg.id}`, msg);
+            return;
+          }
+          if (msg.result) {
+            waitingService.resolve(msg.values);
+          } else {
+            waitingService.reject(new Error(msg.values as string));
+          }
+          break;
+        }
+        case "publish":
+          this.emitter.emit("message", {
+            topic: msg.topic,
+            data: msg.msg,
+          });
+          break;
+        default:
+          break;
+      }
+    });
+  }
+
+  public on<E extends EventNames<EventTypes>>(
+    name: E,
+    listener: EventListener<EventTypes, E>,
+  ): void {
+    this.emitter.on(name, listener);
+  }
+
+  public off<E extends EventNames<EventTypes>>(
+    name: E,
+    listener: EventListener<EventTypes, E>,
+  ): void {
+    this.emitter.off(name, listener);
   }
 
   /**
@@ -81,13 +166,61 @@ class RosbridgeClient extends EventEmitter2 {
     this.transport.close();
   }
 
-  public sendEncodedMessage(msg: string | Uint8Array): void {
-    // fixme - wait for onconnection?
-    if (!this.isConnected) {
-      throw new Error("not connected");
-    }
+  public subscribe(
+    topic: string,
+    options?: { serialization?: "cbor-raw"; datatype?: string },
+  ): void {
+    console.log("SUBSUCRIBE", topic, options);
 
-    this.transport.send(msg);
+    // fixme - don't stringify here, have a call we can call that accepts certain protocol message types
+    this.sendEncodedMessage(
+      JSON.stringify({
+        op: "subscribe",
+        type: options?.datatype,
+        topic,
+        compression: options?.serialization ?? "none",
+        throttle_rate: 0,
+        queue_length: 0,
+      }),
+    );
+
+    /* fixme
+    {
+      op: "unsubscribe",
+      id: this.subscribeId,
+      topic: this.name,
+    }*/
+  }
+
+  public advertise(topic: string, params: { datatype: string; queueSize: number }): void {
+    // fixme - implement
+    /*
+    {
+      op: "advertise",
+      id: this.advertiseId,
+      type: this.messageType,
+      topic: this.name,
+      latch: this.latch,
+      queue_size: this.queue_size,
+    }*/
+    /*{
+      op: "unadvertise",
+      id: this.advertiseId,
+      topic: this.name,
+    }*/
+  }
+
+  public publish(): void {
+    //fixme
+    /*
+    const call = {
+      op: "publish",
+      id: `publish:${this.name}:${this.ros.idCounter}`,
+      topic: this.name,
+      msg: message,
+      latch: this.latch,
+    };
+    */
   }
 
   /**
@@ -191,7 +324,7 @@ class RosbridgeClient extends EventEmitter2 {
   /**
    * Retrieves list of active node names in ROS.
    */
-  public async getNodes(): Promise<unknown> {
+  public async getNodes(): Promise<NodesResponse["nodes"]> {
     const result = await this.callService<NodesResponse>({
       name: "/rosapi/nodes",
       serviceType: "rosapi/Nodes",
@@ -205,8 +338,8 @@ class RosbridgeClient extends EventEmitter2 {
    *
    * @param node name of the node
    */
-  public async getNodeDetails(node: string): Promise<unknown> {
-    return await this.callService({
+  public async getNodeDetails(node: string): Promise<GetNodeDetailsResponse> {
+    return await this.callService<GetNodeDetailsResponse>({
       name: "/rosapi/node_details",
       serviceType: "rosapi/NodeDetails",
       payload: {
@@ -281,25 +414,18 @@ class RosbridgeClient extends EventEmitter2 {
   /**
    * Retrieves list of topics and their associated type definitions.
    */
-  public async getTopicsAndRawTypes(): Promise<unknown> {
+  public async getTopicsAndRawTypes(): Promise<GetTopicsAndRawTypesResponse> {
     return await this.callService({
       name: "/rosapi/topics_and_raw_types",
       serviceType: "rosapi/TopicsAndRawTypes",
     });
   }
 
-  private async callService<T = unknown>(args: ServiceCallArgs): Promise<T> {
+  public async callService<T = unknown>(args: ServiceCallArgs): Promise<T> {
     const serviceCallId = `call_service:${args.name}:${++this.idCounter}`;
 
     const result = new Promise((resolve, reject) => {
-      // fixme - transport?
-      this.once(serviceCallId, (message) => {
-        if (message.result != undefined && message.result === false) {
-          reject(message.values);
-        } else {
-          resolve(message.values);
-        }
-      });
+      this.waitingServiceRequests.set(serviceCallId, { resolve, reject });
     });
 
     const call = {
@@ -311,8 +437,12 @@ class RosbridgeClient extends EventEmitter2 {
     };
 
     this.sendEncodedMessage(JSON.stringify(call));
-
     return (await result) as T;
+  }
+
+  // fixme - this should have a set of outgoing types (ProtocolMessages) that it allows rather than string | Uint8Array
+  private sendEncodedMessage(msg: string | Uint8Array): void {
+    this.transport.send(msg);
   }
 }
 

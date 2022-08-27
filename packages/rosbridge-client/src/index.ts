@@ -4,3 +4,4 @@
 
 export * from "./RosbridgeClient";
 export * from "./types";
+export * from "./WebsocketTransport";
