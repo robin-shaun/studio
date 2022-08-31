@@ -98,7 +98,7 @@ export type RendererEvents = {
   topicHandlersChanged: (renderer: Renderer) => void;
 };
 
-export type FollowMode = "follow" | "follow-orientation" | "no-follow";
+export type FollowMode = "follow" | "follow-position" | "no-follow";
 
 export type RendererConfig = {
   /** Camera settings for the currently rendering scene */
@@ -934,7 +934,7 @@ export class Renderer extends EventEmitter<RendererEvents> {
     const renderFrame = this.transformTree.frame(renderFrameId);
     const fixedFrame = this.transformTree.frame(fixedFrameId);
 
-    // If in stationary or follow without orientation modes
+    // If in stationary or follow-position modes
     if (this.unfollowPoseSnapshot && renderFrame && fixedFrame) {
       const snapshotInRenderFrame = renderFrame.applyLocal(
         makePose(),
@@ -945,7 +945,7 @@ export class Renderer extends EventEmitter<RendererEvents> {
       if (!snapshotInRenderFrame) {
         return;
       }
-      if (this.followMode === "follow-orientation") {
+      if (this.followMode === "follow-position") {
         // only make orientation static/stationary in this mode
         // the position still follows the frame
         this.cameraGroup.position.set(0, 0, 0);
