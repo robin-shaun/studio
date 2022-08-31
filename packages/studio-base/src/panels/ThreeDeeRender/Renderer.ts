@@ -268,6 +268,7 @@ export class Renderer extends EventEmitter<RendererEvents> {
 
   private perspectiveCamera: THREE.PerspectiveCamera;
   private orthographicCamera: THREE.OrthographicCamera;
+  private cameraGroup: THREE.Group;
   private aspect: number;
   private controls: OrbitControls;
   public followMode: FollowMode;
@@ -366,6 +367,10 @@ export class Renderer extends EventEmitter<RendererEvents> {
 
     this.perspectiveCamera = new THREE.PerspectiveCamera();
     this.orthographicCamera = new THREE.OrthographicCamera();
+    this.cameraGroup = new THREE.Group();
+    this.cameraGroup.add(this.perspectiveCamera);
+    this.cameraGroup.add(this.orthographicCamera);
+    this.scene.add(this.cameraGroup);
 
     this.controls = new OrbitControls(this.perspectiveCamera, this.canvas);
     this.controls.screenSpacePanning = false; // only allow panning in the XY plane
@@ -747,7 +752,9 @@ export class Renderer extends EventEmitter<RendererEvents> {
   public setCameraState(cameraState: CameraState): void {
     this._isUpdatingCameraState = true;
     this._updateCameras(cameraState);
-    this.controls.update();
+    if (!this.unfollowPoseSnapshot) {
+      this.controls.update();
+    }
     this._isUpdatingCameraState = false;
   }
 
@@ -922,6 +929,39 @@ export class Renderer extends EventEmitter<RendererEvents> {
     const fixedFrameId = this.fixedFrameId;
     if (renderFrameId == undefined || fixedFrameId == undefined) {
       return;
+    }
+
+    const renderFrame = this.transformTree.frame(renderFrameId);
+    const fixedFrame = this.transformTree.frame(fixedFrameId);
+
+    // If in stationary or follow without orientation modes
+    if (this.unfollowPoseSnapshot && renderFrame && fixedFrame) {
+      const snapshotInRenderFrame = renderFrame.applyLocal(
+        makePose(),
+        this.unfollowPoseSnapshot,
+        fixedFrame,
+        currentTime,
+      );
+      if (!snapshotInRenderFrame) {
+        return;
+      }
+      if (this.followMode === "follow-orientation") {
+        // only make orientation static/stationary in this mode
+        // the position still follows the frame
+        this.cameraGroup.position.set(0, 0, 0);
+      } else {
+        this.cameraGroup.position.set(
+          snapshotInRenderFrame.position.x,
+          snapshotInRenderFrame.position.y,
+          snapshotInRenderFrame.position.z,
+        );
+      }
+      this.cameraGroup.quaternion.set(
+        snapshotInRenderFrame.orientation.x,
+        snapshotInRenderFrame.orientation.y,
+        snapshotInRenderFrame.orientation.z,
+        snapshotInRenderFrame.orientation.w,
+      );
     }
 
     for (const sceneExtension of this.sceneExtensions.values()) {
@@ -1181,6 +1221,11 @@ export class Renderer extends EventEmitter<RendererEvents> {
         frame,
         currentTime,
       );
+    }
+    if (this.followMode === "follow" && this.unfollowPoseSnapshot) {
+      this.unfollowPoseSnapshot = undefined;
+      this.cameraGroup.position.set(0, 0, 0);
+      this.cameraGroup.quaternion.set(0, 0, 0, 1);
     }
   }
 
