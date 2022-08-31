@@ -300,6 +300,10 @@ export class CoreSettings extends SceneExtension {
         // Update the configuration. This is done manually since followMode is at the top level of
         // config, not under `general`
         this.renderer.updateConfig((draft) => {
+          if (draft.followMode === "no-follow") {
+            draft.cameraState.targetOffset = [0, 0, 0];
+            draft.cameraState.thetaOffset = 0;
+          }
           draft.followMode = followMode;
         });
 

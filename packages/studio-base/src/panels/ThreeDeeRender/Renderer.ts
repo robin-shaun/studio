@@ -181,6 +181,8 @@ const UNIT_X = new THREE.Vector3(1, 0, 0);
 const UNIT_Z = new THREE.Vector3(0, 0, 1);
 const PI_2 = Math.PI / 2;
 
+const ROTATION_Z_UP = new THREE.Quaternion().setFromAxisAngle(UNIT_X, PI_2);
+
 // Coordinate frames named in [REP-105](https://www.ros.org/reps/rep-0105.html)
 const DEFAULT_FRAME_IDS = ["base_link", "odom", "map", "earth"];
 
@@ -194,9 +196,11 @@ const RENDERER_ID = "foxglove.Renderer";
 
 const tempColor = new THREE.Color();
 const tempVec3 = new THREE.Vector3();
+const tempVec3_2 = new THREE.Vector3();
 const tempVec2 = new THREE.Vector2();
 const tempSpherical = new THREE.Spherical();
 const tempEuler = new THREE.Euler();
+const tempQuat = new THREE.Quaternion();
 
 // We use a patched version of THREE.js where the internal WebGLShaderCache class has been
 // modified to allow caching based on `vertexShaderKey` and/or `fragmentShaderKey` instead of
@@ -252,6 +256,11 @@ export class Renderer extends EventEmitter<RendererEvents> {
   private hemiLight: THREE.HemisphereLight;
   public input: Input;
   public readonly outlineMaterial = new THREE.LineBasicMaterial({ dithering: true });
+
+  private cube = new THREE.Mesh(
+    new THREE.BoxGeometry(1, 1, 1),
+    new THREE.MeshBasicMaterial({ color: 0xffff00 }),
+  );
 
   private coreSettings: CoreSettings;
   public measurementTool: MeasurementTool;
@@ -354,6 +363,7 @@ export class Renderer extends EventEmitter<RendererEvents> {
 
     this.scene.add(this.dirLight);
     this.scene.add(this.hemiLight);
+    this.scene.add(this.cube);
 
     this.perspectiveCamera = new THREE.PerspectiveCamera();
     this.orthographicCamera = new THREE.OrthographicCamera();
@@ -692,13 +702,14 @@ export class Renderer extends EventEmitter<RendererEvents> {
     // to make the OrbitControls work properly since they track the perspective camera.
     // https://github.com/foxglove/studio/issues/4138
 
-    // Convert the camera spherical coordinates (radius, phi, theta) to Cartesian (X, Y, Z)
-    tempSpherical.set(cameraState.distance, phi, theta);
-    this.perspectiveCamera.position.setFromSpherical(tempSpherical).applyAxisAngle(UNIT_X, PI_2);
-    this.perspectiveCamera.position.add(targetOffset);
+    // // Convert the camera spherical coordinates (radius, phi, theta) to Cartesian (X, Y, Z)
+    // tempSpherical.set(cameraState.distance, phi, theta);
+    // this.perspectiveCamera.position.setFromSpherical(tempSpherical).applyAxisAngle(UNIT_X, PI_2);
+    // this.perspectiveCamera.position.add(targetOffset);
 
-    // Convert the camera spherical coordinates (phi, theta) to a quaternion rotation
-    this.perspectiveCamera.quaternion.setFromEuler(tempEuler.set(phi, 0, theta, "ZYX"));
+    // // Convert the camera spherical coordinates (phi, theta) to a quaternion rotation
+    // this.perspectiveCamera.quaternion.setFromEuler(tempEuler.set(phi, 0, theta, "ZYX"));
+
     this.perspectiveCamera.fov = cameraState.fovy;
     this.perspectiveCamera.near = cameraState.near;
     this.perspectiveCamera.far = cameraState.far;
@@ -904,6 +915,126 @@ export class Renderer extends EventEmitter<RendererEvents> {
     for (const sceneExtension of this.sceneExtensions.values()) {
       sceneExtension.startFrame(currentTime, renderFrameId, fixedFrameId);
     }
+
+    const cameraState = this.config.cameraState;
+    const phi = THREE.MathUtils.degToRad(cameraState.phi);
+    const thetaOffset = -THREE.MathUtils.degToRad(cameraState.thetaOffset);
+
+    const renderFrame = this.transformTree.frame(renderFrameId);
+    const fixedFrame = this.transformTree.frame(fixedFrameId);
+    if (!renderFrame || !fixedFrame) {
+      return;
+    }
+
+    if (this.unfollowPoseSnapshot && this.config.followMode === "no-follow") {
+      //FIXME - does this need to be apply() for correctness?
+      const snapshotInRenderFrame = renderFrame.applyLocal(
+        makePose(),
+        this.unfollowPoseSnapshot,
+        fixedFrame,
+        currentTime,
+      );
+      this.cube.visible = true;
+      if (!snapshotInRenderFrame) {
+        return;
+      }
+      this.cube.position.set(
+        snapshotInRenderFrame.position.x,
+        snapshotInRenderFrame.position.y,
+        snapshotInRenderFrame.position.z,
+      );
+      this.cube.quaternion.set(
+        snapshotInRenderFrame.orientation.x,
+        snapshotInRenderFrame.orientation.y,
+        snapshotInRenderFrame.orientation.z,
+        snapshotInRenderFrame.orientation.w,
+      );
+
+      camera.position.set(
+        snapshotInRenderFrame.position.x,
+        snapshotInRenderFrame.position.y,
+        snapshotInRenderFrame.position.z,
+      );
+      tempQuat.set(
+        snapshotInRenderFrame.orientation.x,
+        snapshotInRenderFrame.orientation.y,
+        snapshotInRenderFrame.orientation.z,
+        snapshotInRenderFrame.orientation.w,
+      );
+      camera.position.add(
+        tempVec3
+          .setFromSpherical(tempSpherical.set(cameraState.distance, phi, thetaOffset))
+          .applyAxisAngle(UNIT_X, PI_2)
+          .add(tempVec3_2.fromArray(cameraState.targetOffset))
+          .applyQuaternion(tempQuat),
+      );
+
+      // this.controls.target
+      //   .set(
+      //     targetInRenderFrame.position.x,
+      //     targetInRenderFrame.position.y,
+      //     targetInRenderFrame.position.z,
+      //   )
+      //   .add(tempVec3.fromArray(cameraState.targetOffset).applyQuaternion(tempQuat));
+
+      camera.quaternion.copy(tempQuat);
+      camera.quaternion.multiply(tempQuat.setFromEuler(tempEuler.set(phi, 0, thetaOffset, "ZYX")));
+
+      // FIXME - this changes the camera position/quaternion that we just carefully set. We might
+      // need to stop using OrbitControls and use our own controls handler that does not change the
+      // camera position but just outputs new phi,thetaOffset,targetOffset,distance.
+
+      // this._isUpdatingCameraState = true;
+      // this.controls.update();
+      // this._isUpdatingCameraState = false;
+    } else if (this.config.followMode === "follow") {
+      this.cube.visible = false;
+      const targetInFixedFrame = fixedFrame.applyLocal(
+        makePose(),
+        makePose(),
+        renderFrame,
+        currentTime,
+      );
+      if (!targetInFixedFrame) {
+        return;
+      }
+
+      tempQuat.set(
+        targetInFixedFrame.orientation.x,
+        targetInFixedFrame.orientation.y,
+        targetInFixedFrame.orientation.z,
+        targetInFixedFrame.orientation.w,
+      );
+
+      // const targetHeading = tempEuler.setFromQuaternion(tempQuat, "ZYX").z;
+
+      // camera.position.set(
+      //   targetInFixedFrame.position.x,
+      //   targetInFixedFrame.position.y,
+      //   targetInFixedFrame.position.z,
+      // );
+      tempQuat.invert();
+      camera.position
+        .setFromSpherical(tempSpherical.set(cameraState.distance, phi, thetaOffset))
+        .applyAxisAngle(UNIT_X, PI_2)
+        .add(tempVec3.fromArray(cameraState.targetOffset))
+        .applyQuaternion(tempQuat);
+      // .applyAxisAngle(UNIT_Z, targetHeading);
+
+      camera.quaternion.copy(tempQuat);
+      camera.quaternion.multiply(tempQuat.setFromEuler(tempEuler.set(phi, 0, thetaOffset, "ZYX")));
+    } else {
+      // follow-orientation
+      this.cube.visible = false;
+      camera.position
+        .setFromSpherical(tempSpherical.set(cameraState.distance, phi, thetaOffset))
+        .applyAxisAngle(UNIT_X, PI_2);
+      camera.position.add(tempVec3.fromArray(cameraState.targetOffset));
+
+      camera.quaternion.setFromEuler(tempEuler.set(phi, 0, thetaOffset, "ZYX"));
+    }
+
+    camera.updateProjectionMatrix();
 
     this.gl.render(this.scene, camera);
 
@@ -1158,6 +1289,9 @@ export class Renderer extends EventEmitter<RendererEvents> {
         frame,
         currentTime,
       );
+      console.log("set snapshot", this.unfollowPoseSnapshot);
+    } else if (this.followMode !== "no-follow") {
+      this.unfollowPoseSnapshot = undefined;
     }
   }
 
