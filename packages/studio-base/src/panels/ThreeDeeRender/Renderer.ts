@@ -268,6 +268,9 @@ export class Renderer extends EventEmitter<RendererEvents> {
 
   private perspectiveCamera: THREE.PerspectiveCamera;
   private orthographicCamera: THREE.OrthographicCamera;
+  // This group is used to transform the cameras based on the Frame follow mode
+  // quaternion is affected in stationary and position-only follow modes
+  // both position and quaternion of the group are affected in stationary mode
   private cameraGroup: THREE.Group;
   private aspect: number;
   private controls: OrbitControls;
@@ -368,6 +371,7 @@ export class Renderer extends EventEmitter<RendererEvents> {
     this.perspectiveCamera = new THREE.PerspectiveCamera();
     this.orthographicCamera = new THREE.OrthographicCamera();
     this.cameraGroup = new THREE.Group();
+
     this.cameraGroup.add(this.perspectiveCamera);
     this.cameraGroup.add(this.orthographicCamera);
     this.scene.add(this.cameraGroup);
@@ -752,7 +756,7 @@ export class Renderer extends EventEmitter<RendererEvents> {
   public setCameraState(cameraState: CameraState): void {
     this._isUpdatingCameraState = true;
     this._updateCameras(cameraState);
-    if (!this.unfollowPoseSnapshot) {
+    if (this.followMode === "follow") {
       this.controls.update();
     }
     this._isUpdatingCameraState = false;
@@ -935,7 +939,7 @@ export class Renderer extends EventEmitter<RendererEvents> {
     const fixedFrame = this.transformTree.frame(fixedFrameId);
 
     // If in stationary or follow-position modes
-    if (this.unfollowPoseSnapshot && renderFrame && fixedFrame) {
+    if (this.followMode !== "follow" && this.unfollowPoseSnapshot && renderFrame && fixedFrame) {
       const snapshotInRenderFrame = renderFrame.applyLocal(
         makePose(),
         this.unfollowPoseSnapshot,
