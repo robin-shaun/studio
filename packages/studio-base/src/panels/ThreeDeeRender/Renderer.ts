@@ -926,6 +926,12 @@ export class Renderer extends EventEmitter<RendererEvents> {
       if (!snapshotInRenderFrame) {
         return;
       }
+      /**
+       * the application of the unfollowPoseSnapshot position and orientation
+       * components makes the camera position and rotation static relative to the fixed frame.
+       * So when the display frame changes the angle of the camera relative
+       * to the scene will not change because only the snapshotPose orientation is applied
+       */
       if (this.followMode === "follow-position") {
         // only make orientation static/stationary in this mode
         // the position still follows the frame
@@ -937,6 +943,7 @@ export class Renderer extends EventEmitter<RendererEvents> {
           snapshotInRenderFrame.position.z,
         );
       }
+      // this negates the rotation of the changes in renderFrame
       this.cameraGroup.quaternion.set(
         snapshotInRenderFrame.orientation.x,
         snapshotInRenderFrame.orientation.y,
@@ -1191,8 +1198,7 @@ export class Renderer extends EventEmitter<RendererEvents> {
       this.fixedFrameId = fixedFrameId;
     }
 
-    this.settings.errors.clearPath(FOLLOW_TF_PATH);
-
+    // Should only occur on reload when the saved followMode is not follow
     if (this.followMode !== "follow" && !this.unfollowPoseSnapshot) {
       // Snapshot the current pose of the render frame in the fixed frame
       this.unfollowPoseSnapshot = makePose();
@@ -1203,11 +1209,42 @@ export class Renderer extends EventEmitter<RendererEvents> {
         currentTime,
       );
     }
-    if (this.followMode === "follow" && this.unfollowPoseSnapshot) {
-      this.unfollowPoseSnapshot = undefined;
-      this.cameraGroup.position.set(0, 0, 0);
-      this.cameraGroup.quaternion.set(0, 0, 0, 1);
+    this.settings.errors.clearPath(FOLLOW_TF_PATH);
+  }
+
+  // This should not be called on initialization only on settings changes
+  public updateFollowMode(newFollowMode: FollowMode): void {
+    if (this.followMode === newFollowMode) {
+      return;
     }
+
+    if (!this.renderFrameId || !this.fixedFrameId) {
+      this.followMode = newFollowMode;
+      return;
+    }
+
+    const renderFrame = this.transformTree.frame(this.renderFrameId);
+    const fixedFrame = this.transformTree.frame(this.fixedFrameId);
+
+    if (!renderFrame || !fixedFrame) {
+      // if this happens it will be set on initialization in _updateFrames
+      this.followMode = newFollowMode;
+      return;
+    }
+
+    // always create a new snapshot when changing frames to minimize old snapshots causing camera jumps
+    this.unfollowPoseSnapshot = makePose();
+    fixedFrame.applyLocal(
+      this.unfollowPoseSnapshot,
+      this.unfollowPoseSnapshot,
+      renderFrame,
+      this.currentTime,
+    );
+
+    // reset any applied cameraGroup settings so that they aren't applied in follow mode
+    this.cameraGroup.position.set(0, 0, 0);
+    this.cameraGroup.quaternion.set(0, 0, 0, 1);
+    this.followMode = newFollowMode;
   }
 
   private _updateResolution(): void {
