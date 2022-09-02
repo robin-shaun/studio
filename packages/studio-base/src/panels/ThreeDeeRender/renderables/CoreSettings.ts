@@ -79,7 +79,7 @@ export class CoreSettings extends SceneExtension {
 
     const followModeOptions = [
       { label: "Follow", value: "follow" },
-      { label: "Follow Position Only", value: "follow-position" },
+      { label: "Follow position", value: "follow-position" },
       { label: "Stationary", value: "no-follow" },
     ];
     const followModeValue = this.renderer.followMode;
@@ -91,7 +91,7 @@ export class CoreSettings extends SceneExtension {
           label: "Frame",
           fields: {
             followTf: {
-              label: "Display Frame",
+              label: "Display frame",
               help: "The coordinate frame to place the camera in. The camera position and orientation will be relative to the origin of this frame.",
               input: "select",
               options: followTfOptions,
@@ -99,7 +99,7 @@ export class CoreSettings extends SceneExtension {
               error: followTfError,
             },
             followMode: {
-              label: "Follow Mode",
+              label: "Follow mode",
               help: "Toggle between keeping the camera stationary relative to the Display Frame or Root Frame.",
               input: "select",
               options: followModeOptions,
