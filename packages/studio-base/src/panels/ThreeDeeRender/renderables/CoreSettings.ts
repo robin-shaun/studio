@@ -300,10 +300,15 @@ export class CoreSettings extends SceneExtension {
         // Update the configuration. This is done manually since followMode is at the top level of
         // config, not under `general`
         this.renderer.updateConfig((draft) => {
+          // any follow -> stationary no clear
+          // stationary -> any follow clear offset (center on frame)
+          if (draft.followMode === "no-follow") {
+            draft.cameraState.targetOffset = [0, 0, 0];
+          }
           draft.followMode = followMode;
         });
 
-        this.renderer.followMode = followMode;
+        this.renderer.updateFollowMode(followMode);
       }
     } else if (category === "scene") {
       if (path[1] === "cameraState") {
