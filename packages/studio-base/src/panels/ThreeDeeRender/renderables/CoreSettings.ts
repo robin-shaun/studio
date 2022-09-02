@@ -100,7 +100,7 @@ export class CoreSettings extends SceneExtension {
             },
             followMode: {
               label: "Follow mode",
-              help: "Toggle between keeping the camera stationary relative to the Display Frame or Root Frame.",
+              help: "Toggle between keeping the camera stationary relative to the display frame or root frame.",
               input: "select",
               options: followModeOptions,
               value: followModeValue,
