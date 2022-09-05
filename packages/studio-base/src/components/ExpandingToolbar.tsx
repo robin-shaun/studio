@@ -3,45 +3,44 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import CloseFullscreenIcon from "@mui/icons-material/CloseFullscreen";
-import { Paper, IconButton, Tabs, Tab, styled as muiStyled } from "@mui/material";
+import { Paper, IconButton, Tabs, Tab } from "@mui/material";
 import { ReactElement, ReactNode } from "react";
+import { makeStyles } from "tss-react/mui";
 
 import Stack from "@foxglove/studio-base/components/Stack";
 
 const PANE_HEIGHT = 240;
 
-const StyledIconButton = muiStyled(IconButton)({
-  fontSize: "1rem !important",
-
-  "& svg:not(.MuiSvgIcon-root)": {
+const useStyles = makeStyles()((theme) => ({
+  iconButton: {
     fontSize: "1rem !important",
+
+    "& svg:not(.MuiSvgIcon-root)": {
+      fontSize: "1rem !important",
+    },
   },
-});
+  tab: {
+    minHeight: "auto",
+    minWidth: "auto",
+    padding: theme.spacing(1, 1.5, 1.125),
+    color: theme.palette.text.secondary,
 
-const StyledTab = muiStyled(Tab)(({ theme }) => ({
-  minHeight: "auto",
-  minWidth: "auto",
-  padding: theme.spacing(1, 1.5, 1.125),
-  color: theme.palette.text.secondary,
-
-  "&.Mui-selected": {
-    color: theme.palette.text.primary,
+    "&.Mui-selected": {
+      color: theme.palette.text.primary,
+    },
   },
-}));
-
-const StyledTabs = muiStyled(Tabs)({
-  minHeight: "auto",
-
-  ".MuiTabs-indicator": {
+  tabs: {
+    minHeight: "auto",
+  },
+  tabIndictor: {
     transform: "scaleX(0.75)",
     height: 2,
   },
-});
-
-const Content = muiStyled("div")(({ theme }) => ({
-  position: "relative",
-  backgroundColor: theme.palette.background.default,
-  width: 280,
+  content: {
+    position: "relative",
+    backgroundColor: theme.palette.background.default,
+    width: 280,
+  },
 }));
 
 export function ToolGroup<T>({ children }: { name: T; children: React.ReactElement }): JSX.Element {
@@ -75,6 +74,7 @@ export default function ExpandingToolbar<T extends string>({
   tooltip,
   dataTest,
 }: Props<T>): JSX.Element {
+  const { classes } = useStyles();
   const expanded = selectedTab != undefined;
 
   if (!expanded) {
@@ -88,14 +88,15 @@ export default function ExpandingToolbar<T extends string>({
 
     return (
       <Paper square={false} elevation={4} style={{ pointerEvents: "auto" }}>
-        <StyledIconButton
+        <IconButton
+          className={classes.iconButton}
           color={checked === true ? "info" : "default"}
           title={tooltip}
           data-testid={`ExpandingToolbar-${tooltip}`}
           onClick={() => onSelectTab(selectedTabLocal)}
         >
           {icon}
-        </StyledIconButton>
+        </IconButton>
       </Paper>
     );
   }
@@ -124,17 +125,25 @@ export default function ExpandingToolbar<T extends string>({
     >
       <Paper>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
-          <StyledTabs textColor="inherit" value={selectedTab} onChange={handleChange}>
+          <Tabs
+            textColor="inherit"
+            value={selectedTab}
+            onChange={handleChange}
+            classes={{
+              root: classes.tabs,
+              indicator: classes.tabIndictor,
+            }}
+          >
             {React.Children.map(children, (child) => (
-              <StyledTab label={child.props.name} value={child.props.name} />
+              <Tab className={classes.tab} label={child.props.name} value={child.props.name} />
             ))}
-          </StyledTabs>
-          <StyledIconButton onClick={() => onSelectTab(undefined)}>
+          </Tabs>
+          <IconButton className={classes.iconButton} onClick={() => onSelectTab(undefined)}>
             <CloseFullscreenIcon fontSize="small" />
-          </StyledIconButton>
+          </IconButton>
         </Stack>
       </Paper>
-      <Content>{selectedChild}</Content>
+      <div className={classes.content}>{selectedChild}</div>
     </Paper>
   );
 }
