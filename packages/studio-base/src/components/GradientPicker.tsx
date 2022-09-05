@@ -11,8 +11,8 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { styled as muiStyled } from "@mui/material";
 import { useCallback } from "react";
+import { makeStyles } from "tss-react/mui";
 
 import { Color } from "@foxglove/regl-worldview";
 import AutoSizingCanvas from "@foxglove/studio-base/components/AutoSizingCanvas";
@@ -25,30 +25,32 @@ const GRADIENT_COLOR_PICKER_SIZE = 25;
 const GRADIENT_BAR_INSET = (GRADIENT_COLOR_PICKER_SIZE - GRADIENT_LINE_WIDTH) / 2;
 const GRADIENT_BAR_HEIGHT = 10;
 
-const SPickerWrapper = muiStyled("div")`
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: row;
-  justify-content: space-between;
-`;
-const SBarWrapper = muiStyled("div")`
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: row;
-  align-items: flex-end;
-  margin-left: ${GRADIENT_BAR_INSET}px;
-  margin-right: ${GRADIENT_BAR_INSET}px;
-`;
-const SLine = muiStyled("div")`
-  flex: 0 0 auto;
-  width: ${GRADIENT_LINE_WIDTH}px;
-  height: ${GRADIENT_BAR_HEIGHT + GRADIENT_LINE_HEIGHT}px;
-  background-color: ${({ theme }) => theme.palette.text.primary};
-`;
-const SBar = muiStyled("div")`
-  flex: 1 1 auto;
-  height: ${GRADIENT_BAR_HEIGHT}px;
-`;
+const useStyles = makeStyles()((theme) => ({
+  pickerWrapper: {
+    flex: "1 1 auto",
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  barWrapper: {
+    flex: "1 1 auto",
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "flex-end",
+    marginLeft: GRADIENT_BAR_INSET,
+    marginRight: GRADIENT_BAR_INSET,
+  },
+  line: {
+    flex: "0 0 auto",
+    width: GRADIENT_LINE_WIDTH,
+    height: GRADIENT_BAR_HEIGHT + GRADIENT_LINE_HEIGHT,
+    backgroundColor: theme.palette.text.primary,
+  },
+  bar: {
+    flex: "1 1 auto",
+    height: GRADIENT_BAR_HEIGHT,
+  },
+}));
 
 export default function GradientPicker({
   minColor,
@@ -59,6 +61,7 @@ export default function GradientPicker({
   maxColor: Color;
   onChange: (arg0: { minColor: Color; maxColor: Color }) => void;
 }): JSX.Element {
+  const { classes } = useStyles();
   const rgbMinColor = defaultedRGBStringFromColorObj(minColor);
   const rgbMaxColor = defaultedRGBStringFromColorObj(maxColor);
 
@@ -75,7 +78,7 @@ export default function GradientPicker({
 
   return (
     <>
-      <SPickerWrapper>
+      <div className={classes.pickerWrapper}>
         <ColorPicker
           buttonShape="circle"
           circleSize={GRADIENT_COLOR_PICKER_SIZE}
@@ -88,14 +91,14 @@ export default function GradientPicker({
           color={maxColor}
           onChange={(newColor) => onChange({ minColor, maxColor: newColor })}
         />
-      </SPickerWrapper>
-      <SBarWrapper>
-        <SLine />
-        <SBar>
+      </div>
+      <div className={classes.barWrapper}>
+        <div className={classes.line} />
+        <div className={classes.bar}>
           <AutoSizingCanvas draw={drawGradient} />
-        </SBar>
-        <SLine />
-      </SBarWrapper>
+        </div>
+        <div className={classes.line} />
+      </div>
     </>
   );
 }
