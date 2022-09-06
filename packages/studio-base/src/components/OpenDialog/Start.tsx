@@ -2,15 +2,9 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import {
-  Button,
-  Checkbox,
-  FormControlLabel,
-  styled as muiStyled,
-  SvgIcon,
-  Typography,
-} from "@mui/material";
+import { Button, Checkbox, FormControlLabel, SvgIcon, Typography } from "@mui/material";
 import { useMemo } from "react";
+import { makeStyles } from "tss-react/mui";
 
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import Stack from "@foxglove/studio-base/components/Stack";
@@ -63,28 +57,28 @@ export type IStartProps = {
   onSelectView: (newValue: OpenDialogViews) => void;
 };
 
-const StyledButton = muiStyled(Button)(({ theme }) => ({
-  textAlign: "left",
-  justifyContent: "flex-start",
-  padding: theme.spacing(2, 3),
-  gap: theme.spacing(1.5),
-  borderColor: theme.palette.divider,
+const useStyles = makeStyles()((theme) => ({
+  button: {
+    textAlign: "left",
+    justifyContent: "flex-start",
+    padding: theme.spacing(2, 3),
+    gap: theme.spacing(1.5),
+    borderColor: theme.palette.divider,
 
-  ".MuiButton-startIcon .MuiSvgIcon-fontSizeLarge": {
-    fontSize: 28,
+    ".MuiButton-startIcon .MuiSvgIcon-fontSizeLarge": {
+      fontSize: 28,
+    },
   },
-}));
+  grid: {
+    display: "grid",
+    gap: theme.spacing(2.5, 4),
+    gridTemplateRows: "repeat(2, auto) 1fr",
+    gridTemplateColumns: `minmax(${(7 / 12) * 100}%, auto) 1fr`,
 
-const Grid = muiStyled("div")(({ theme }) => ({
-  // See comment below for explanation of grid properties
-  display: "grid",
-  gap: theme.spacing(2.5, 4),
-  gridTemplateRows: "repeat(2, auto) 1fr",
-  gridTemplateColumns: `minmax(${(7 / 12) * 100}%, auto) 1fr`,
-
-  "@media(max-width: 800px)": {
-    display: "flex",
-    flexDirection: "column",
+    "@media(max-width: 800px)": {
+      display: "flex",
+      flexDirection: "column",
+    },
   },
 }));
 
@@ -94,6 +88,7 @@ export default function Start(props: IStartProps): JSX.Element {
     supportedRemoteFileExtensions = [],
     onSelectView,
   } = props;
+  const { classes } = useStyles();
   const { recentSources, selectRecent } = usePlayerSelection();
 
   const [showOnStartup = true, setShowOnStartup] = useAppConfigurationValue<boolean>(
@@ -188,7 +183,7 @@ export default function Start(props: IStartProps): JSX.Element {
   // section doesn't affect the heights of the Recent and Help sections.
   return (
     <Stack gap={2.5}>
-      <Grid>
+      <div className={classes.grid}>
         {recentItems.length > 0 && <ActionList gridColumn={2} title="Recent" items={recentItems} />}
         <Stack flex="1 1 0" gap={2} style={{ gridRow: "1 / 4" }}>
           <Typography variant="h5" color="text.secondary">
@@ -196,7 +191,8 @@ export default function Start(props: IStartProps): JSX.Element {
           </Typography>
           <Stack gap={1.5}>
             {startItems.map((item) => (
-              <StyledButton
+              <Button
+                className={classes.button}
                 fullWidth
                 color="inherit"
                 variant="outlined"
@@ -213,13 +209,13 @@ export default function Start(props: IStartProps): JSX.Element {
                     {item.secondaryText}
                   </Typography>
                 </Stack>
-              </StyledButton>
+              </Button>
             ))}
           </Stack>
         </Stack>
         <ActionList gridColumn={2} title="Help" items={HELP_ITEMS} />
         <ActionList gridColumn={2} title="Contact" items={CONTACT_ITEMS} />
-      </Grid>
+      </div>
       <FormControlLabel
         label="Show on startup"
         control={

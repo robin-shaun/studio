@@ -3,9 +3,10 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import CloseIcon from "@mui/icons-material/Close";
-import { Dialog, DialogTitle, IconButton, styled as muiStyled } from "@mui/material";
+import { Dialog, DialogTitle, IconButton } from "@mui/material";
 import { useCallback, useLayoutEffect, useMemo, useState } from "react";
 import { useMountedState } from "react-use";
+import { makeStyles } from "tss-react/mui";
 
 import Stack from "@foxglove/studio-base/components/Stack";
 import {
@@ -25,15 +26,18 @@ type OpenDialogProps = {
   onDismiss?: () => void;
 };
 
-const StyledDialogTitle = muiStyled(DialogTitle)(({ theme }) => ({
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  padding: theme.spacing(4, 5, 0, 5),
+const useStyles = makeStyles()((theme) => ({
+  dialogTitle: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: theme.spacing(4, 5, 0, 5),
+  },
 }));
 
 export default function OpenDialog(props: OpenDialogProps): JSX.Element {
   const { activeView: defaultActiveView, onDismiss, activeDataSource } = props;
+  const { classes } = useStyles();
   const { availableSources, selectSource } = usePlayerSelection();
 
   const isMounted = useMountedState();
@@ -155,12 +159,12 @@ export default function OpenDialog(props: OpenDialogProps): JSX.Element {
         style: { maxWidth: "calc(min(768px, 100% - 32px))" },
       }}
     >
-      <StyledDialogTitle>
+      <DialogTitle className={classes.dialogTitle}>
         {view.title}
         <IconButton onClick={onDismiss} edge="end">
           <CloseIcon />
         </IconButton>
-      </StyledDialogTitle>
+      </DialogTitle>
       <Stack
         flexGrow={1}
         flexBasis={450}
