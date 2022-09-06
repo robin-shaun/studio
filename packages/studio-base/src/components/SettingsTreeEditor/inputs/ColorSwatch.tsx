@@ -11,7 +11,7 @@ const useStyles = makeStyles()((theme) => ({
     width: theme.spacing(3),
     margin: theme.spacing(0.625),
     borderRadius: 1,
-    borderColor: theme.palette.divider,
+    border: `1px solid ${theme.palette.divider}`,
   },
 }));
 
