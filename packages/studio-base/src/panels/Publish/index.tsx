@@ -38,7 +38,7 @@ type Config = Partial<{
   datatype: string;
   buttonText: string;
   buttonTooltip: string;
-  buttonColor: string;
+  buttonColor?: string;
   advancedView: boolean;
   value: string;
 }>;
@@ -62,18 +62,20 @@ function buildSettingsTree(config: Config): SettingsTreeNodes {
   };
 }
 
-const useStyles = makeStyles<{ buttonColor: string }>()((theme, { buttonColor }) => {
-  const augmentedButtonColor = theme.palette.augmentColor({
-    color: { main: buttonColor },
-  });
+const useStyles = makeStyles<{ buttonColor?: string }>()((theme, { buttonColor }) => {
+  const augmentedButtonColor = buttonColor
+    ? theme.palette.augmentColor({
+        color: { main: buttonColor },
+      })
+    : undefined;
 
   return {
     button: {
-      backgroundColor: augmentedButtonColor.main,
-      color: augmentedButtonColor.contrastText,
+      backgroundColor: augmentedButtonColor?.main,
+      color: augmentedButtonColor?.contrastText,
 
       "&:hover": {
-        backgroundColor: augmentedButtonColor.dark,
+        backgroundColor: augmentedButtonColor?.dark,
       },
     },
     textarea: {
