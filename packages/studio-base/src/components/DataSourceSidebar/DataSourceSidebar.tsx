@@ -3,16 +3,9 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import AddIcon from "@mui/icons-material/Add";
-import {
-  IconButton,
-  Tab,
-  Tabs,
-  styled as muiStyled,
-  Divider,
-  Box,
-  CircularProgress,
-} from "@mui/material";
+import { IconButton, Tab, Tabs, Divider, CircularProgress } from "@mui/material";
 import { useState, PropsWithChildren, useEffect, useMemo } from "react";
+import { makeStyles } from "tss-react/mui";
 
 import { EventsList } from "@foxglove/studio-base/components/DataSourceSidebar/EventsList";
 import {
@@ -34,32 +27,32 @@ type Props = {
   onSelectDataSourceAction: () => void;
 };
 
-const StyledTab = muiStyled(Tab)(({ theme }) => ({
-  minHeight: "auto",
-  minWidth: theme.spacing(8),
-  padding: theme.spacing(1.5, 2),
-  color: theme.palette.text.secondary,
+const useStyles = makeStyles()((theme) => ({
+  tab: {
+    minHeight: "auto",
+    minWidth: theme.spacing(8),
+    padding: theme.spacing(1.5, 2),
+    color: theme.palette.text.secondary,
 
-  "&.Mui-selected": {
-    color: theme.palette.text.primary,
+    "&.Mui-selected": {
+      color: theme.palette.text.primary,
+    },
   },
-}));
+  tabs: {
+    minHeight: "auto",
 
-const StyledTabs = muiStyled(Tabs)({
-  minHeight: "auto",
-
-  ".MuiTabs-indicator": {
-    transform: "scaleX(0.5)",
-    height: 2,
+    ".MuiTabs-indicator": {
+      transform: "scaleX(0.5)",
+      height: 2,
+    },
   },
-});
-
-const ProblemCount = muiStyled("div")(({ theme }) => ({
-  backgroundColor: theme.palette.error.main,
-  fontSize: theme.typography.caption.fontSize,
-  color: theme.palette.error.contrastText,
-  padding: theme.spacing(0.125, 0.75),
-  borderRadius: 8,
+  problemCount: {
+    backgroundColor: theme.palette.error.main,
+    fontSize: theme.typography.caption.fontSize,
+    color: theme.palette.error.contrastText,
+    padding: theme.spacing(0.125, 0.75),
+    borderRadius: 8,
+  },
 }));
 
 const TabPanel = (
@@ -71,16 +64,16 @@ const TabPanel = (
   const { children, value, index, ...other } = props;
 
   return (
-    <Box
+    <div
       role="tabpanel"
       hidden={value !== index}
       id={`tabpanel-${index}`}
       aria-labelledby={`tab-${index}`}
-      flex="auto"
+      style={{ flex: "auto" }}
       {...other}
     >
       {value === index && <>{children}</>}
-    </Box>
+    </div>
   );
 };
 
@@ -91,6 +84,7 @@ const selectPlayerSourceId = ({ playerState }: MessagePipelineContext) =>
 const selectSelectedEventId = (store: EventsStore) => store.selectedEventId;
 
 export default function DataSourceSidebar(props: Props): JSX.Element {
+  const { classes } = useStyles();
   const { onSelectDataSourceAction } = props;
   const playerPresence = useMessagePipeline(selectPlayerPresence);
   const playerProblems = useMessagePipeline(selectPlayerProblems) ?? [];
@@ -144,26 +138,30 @@ export default function DataSourceSidebar(props: Props): JSX.Element {
           <>
             <Divider />
             <Stack flex={1}>
-              <StyledTabs
+              <Tabs
+                className={classes.tabs}
                 value={activeTab}
                 onChange={(_ev, newValue: number) => setActiveTab(newValue)}
                 textColor="inherit"
               >
-                <StyledTab disableRipple label="Topics" value={0} />
-                {showEventsTab && <StyledTab disableRipple label="Events" value={1} />}
-                <StyledTab
+                <Tab className={classes.tab} disableRipple label="Topics" value={0} />
+                {showEventsTab && (
+                  <Tab className={classes.tab} disableRipple label="Events" value={1} />
+                )}
+                <Tab
+                  className={classes.tab}
                   disableRipple
                   label={
                     <Stack direction="row" alignItems="baseline" gap={1}>
                       Problems
                       {playerProblems.length > 0 && (
-                        <ProblemCount>{playerProblems.length}</ProblemCount>
+                        <div className={classes.problemCount}>{playerProblems.length}</div>
                       )}
                     </Stack>
                   }
                   value={2}
                 />
-              </StyledTabs>
+              </Tabs>
               <Divider />
               <TabPanel value={activeTab} index={0}>
                 <TopicList />

@@ -6,19 +6,18 @@ import ClearIcon from "@mui/icons-material/Clear";
 import SearchIcon from "@mui/icons-material/Search";
 import {
   AppBar,
-  Box,
   IconButton,
   List,
   ListItem,
   ListItemText,
   Skeleton,
-  styled as muiStyled,
   TextField,
   Typography,
   TypographyProps,
 } from "@mui/material";
 import { Fzf, FzfResultItem } from "fzf";
 import { useMemo, useState } from "react";
+import { makeStyles } from "tss-react/mui";
 
 import { DirectTopicStatsUpdater } from "@foxglove/studio-base/components/DirectTopicStatsUpdater";
 import {
@@ -68,41 +67,30 @@ const HighlightChars = ({
   return <>{nodes}</>;
 };
 
-const StyledAppBar = muiStyled(AppBar, { skipSx: true })(({ theme }) => ({
-  top: -1,
-  zIndex: theme.zIndex.appBar - 1,
-  borderBottom: `1px solid ${theme.palette.divider}`,
-  display: "flex",
-  flexDirection: "row",
-  padding: theme.spacing(1),
-  gap: theme.spacing(1),
-  alignItems: "center",
-}));
+const useStyles = makeStyles()((theme) => ({
+  appBar: {
+    top: -1,
+    zIndex: theme.zIndex.appBar - 1,
+    borderBottom: `1px solid ${theme.palette.divider}`,
+    display: "flex",
+    flexDirection: "row",
+    padding: theme.spacing(1),
+    gap: theme.spacing(1),
+    alignItems: "center",
+  },
+  listItem: {
+    paddingRight: theme.spacing(1),
 
-const StyledListItem = muiStyled(ListItem, { skipSx: true })(({ theme }) => ({
-  paddingRight: theme.spacing(1),
-
-  "&.MuiListItem-dense": {
-    ".MuiListItemText-root": {
-      marginTop: theme.spacing(0.5),
-      marginBottom: theme.spacing(0.5),
+    "&.MuiListItem-dense": {
+      ".MuiListItemText-root": {
+        marginTop: theme.spacing(0.5),
+        marginBottom: theme.spacing(0.5),
+      },
+    },
+    ".MuiListItemSecondaryAction-root": {
+      marginRight: theme.spacing(-1),
     },
   },
-  ".MuiListItemSecondaryAction-root": {
-    marginRight: theme.spacing(-1),
-  },
-  // "@media (pointer: fine)": {
-  //   ".MuiListItemSecondaryAction-root": {
-  //     visibility: "hidden",
-  //   },
-  //   "&:not(.loading):hover": {
-  //     // paddingRight: theme.spacing(6),
-
-  //     ".MuiListItemSecondaryAction-root": {
-  //       visibility: "visible",
-  //     },
-  //   },
-  // },
 }));
 
 const EMPTY_TOPICS: Topic[] = [];
@@ -119,8 +107,10 @@ function TopicListItem({
   topic: Topic;
   positions: Set<number>;
 }): JSX.Element {
+  const { classes } = useStyles();
   return (
-    <StyledListItem
+    <ListItem
+      className={classes.listItem}
       divider
       key={topic.name}
       secondaryAction={
@@ -160,13 +150,14 @@ function TopicListItem({
         }}
         style={{ marginRight: "48px" }}
       />
-    </StyledListItem>
+    </ListItem>
   );
 }
 
 const MemoTopicListItem = React.memo(TopicListItem);
 
 export function TopicList(): JSX.Element {
+  const { classes, cx } = useStyles();
   const [filterText, setFilterText] = useState<string>("");
 
   const playerPresence = useMessagePipeline(selectPlayerPresence);
@@ -197,7 +188,7 @@ export function TopicList(): JSX.Element {
   if (playerPresence === PlayerPresence.INITIALIZING) {
     return (
       <>
-        <StyledAppBar position="sticky" color="inherit" elevation={0}>
+        <AppBar className={classes.appBar} position="sticky" color="inherit" elevation={0}>
           <TextField
             disabled
             variant="filled"
@@ -207,16 +198,16 @@ export function TopicList(): JSX.Element {
               startAdornment: <SearchIcon fontSize="small" />,
             }}
           />
-        </StyledAppBar>
+        </AppBar>
         <List key="loading" dense disablePadding>
           {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].map((i) => (
-            <StyledListItem className="loading" divider key={i}>
+            <ListItem className={cx(classes.listItem, "loading")} divider key={i}>
               <ListItemText
                 primary={<Skeleton animation={false} width="20%" />}
                 secondary={<Skeleton animation="wave" width="55%" />}
                 secondaryTypographyProps={{ variant: "caption" }}
               />
-            </StyledListItem>
+            </ListItem>
           ))}
         </List>
       </>
@@ -225,8 +216,8 @@ export function TopicList(): JSX.Element {
 
   return (
     <>
-      <StyledAppBar position="sticky" color="inherit" elevation={0}>
-        <Box flex="auto">
+      <AppBar className={classes.appBar} position="sticky" color="inherit" elevation={0}>
+        <div style={{ flex: "auto" }}>
           <TextField
             disabled={playerPresence !== PlayerPresence.PRESENT}
             onChange={(event) => setFilterText(event.target.value)}
@@ -248,8 +239,8 @@ export function TopicList(): JSX.Element {
               ),
             }}
           />
-        </Box>
-      </StyledAppBar>
+        </div>
+      </AppBar>
 
       {filteredTopics.length > 0 ? (
         <List key="topics" dense disablePadding>
