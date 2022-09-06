@@ -10,7 +10,7 @@ import {
   Button,
   ThemeProvider as MuiThemeProvider,
 } from "@mui/material";
-import { useState, useMemo, ReactElement } from "react";
+import { useState, useMemo } from "react";
 import { makeStyles } from "tss-react/mui";
 
 import Stack from "@foxglove/studio-base/components/Stack";
@@ -38,14 +38,16 @@ const useStyles = makeStyles()((theme) => ({
     height: "100vh",
   },
   closeButton: {
-    position: "absolute",
-    margin: theme.spacing(1),
-    right: 0,
-    top: 0,
+    "&.MuiIconButton-root": {
+      position: "absolute",
+      margin: theme.spacing(1),
+      right: 0,
+      top: 0,
+    },
   },
 }));
 
-const VersionBanner = function ({
+export default function VersionBanner({
   isChrome,
   currentVersion,
   isDismissable,
@@ -53,13 +55,13 @@ const VersionBanner = function ({
   isChrome: boolean;
   currentVersion: number;
   isDismissable: boolean;
-}): ReactElement | ReactNull {
+}): JSX.Element {
   const { classes, cx } = useStyles();
   const [showBanner, setShowBanner] = useState(true);
   const muiTheme = useMemo(() => createMuiTheme("dark"), []);
 
   if (!showBanner || currentVersion >= MINIMUM_CHROME_VERSION) {
-    return ReactNull;
+    return <></>;
   }
 
   const prompt = isChrome
@@ -69,7 +71,7 @@ const VersionBanner = function ({
 
   return (
     <MuiThemeProvider theme={muiTheme}>
-      <div className={cx(classes.root, { [classes.dismissable]: isDismissable })}>
+      <div className={cx(classes.root, { [classes.dismissable]: !isDismissable })}>
         <Stack padding={2} gap={1.5} alignItems="center">
           {isDismissable && (
             <IconButton
@@ -110,6 +112,4 @@ const VersionBanner = function ({
       </div>
     </MuiThemeProvider>
   );
-};
-
-export default VersionBanner;
+}
