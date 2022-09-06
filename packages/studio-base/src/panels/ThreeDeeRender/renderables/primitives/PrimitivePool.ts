@@ -8,6 +8,7 @@ import { RenderableCylinders } from "./RenderableCylinders";
 import { RenderableLines } from "./RenderableLines";
 import { RenderableModels } from "./RenderableModels";
 import { RenderablePrimitive } from "./RenderablePrimitive";
+import { RenderableSpheres } from "./RenderableSpheres";
 import { PrimitiveType } from "./types";
 
 const CONSTRUCTORS = {
@@ -15,6 +16,7 @@ const CONSTRUCTORS = {
   [PrimitiveType.MODELS]: RenderableModels,
   [PrimitiveType.LINES]: RenderableLines,
   [PrimitiveType.CYLINDERS]: RenderableCylinders,
+  [PrimitiveType.SPHERES]: RenderableSpheres,
 };
 
 /**
