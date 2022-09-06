@@ -12,20 +12,22 @@
 //   You may not use this file except in compliance with the License.
 
 import MinusIcon from "@mui/icons-material/IndeterminateCheckBoxOutlined";
-import { IconButton, styled as muiStyled } from "@mui/material";
+import { IconButton } from "@mui/material";
 import { PropsWithChildren } from "react";
 import { Row } from "react-table";
+import { makeStyles } from "tss-react/mui";
 
 import { sanitizeAccessorPath } from "./sanitizeAccessorPath";
 
-const ObjectCell = muiStyled("span")`
-  font-style: italic;
-  cursor: pointer;
-`;
-
-const SIconButton = muiStyled(IconButton)({
-  "&:hover": {
-    backgroundColor: "transparent",
+const useStyles = makeStyles()({
+  iconButton: {
+    "&:hover": {
+      backgroundColor: "transparent",
+    },
+  },
+  objectCell: {
+    fontStyle: "italic",
+    cursor: "pointer",
   },
 });
 
@@ -39,6 +41,7 @@ export default function TableCell({
   accessorPath,
   children,
 }: PropsWithChildren<TableCellProps>): JSX.Element {
+  const { classes } = useStyles();
   const [isExpanded, setIsExpanded] = React.useState(false);
   const toggleIsExpanded = React.useCallback(() => setIsExpanded((expanded) => !expanded), []);
 
@@ -46,13 +49,14 @@ export default function TableCell({
     return (
       <div>
         {isExpanded && (
-          <SIconButton
+          <IconButton
+            className={classes.iconButton}
             size="small"
             onClick={toggleIsExpanded}
             style={{ marginTop: -4, marginLeft: -4 }}
           >
             <MinusIcon fontSize="small" />
-          </SIconButton>
+          </IconButton>
         )}
         {children}
       </div>
@@ -60,11 +64,12 @@ export default function TableCell({
   }
 
   return (
-    <ObjectCell
+    <span
+      className={classes.objectCell}
       data-testid={`expand-cell-${sanitizeAccessorPath(accessorPath)}-${row.index}`}
       onClick={toggleIsExpanded}
     >
       Object
-    </ObjectCell>
+    </span>
   );
 }

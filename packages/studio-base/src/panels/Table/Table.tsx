@@ -19,14 +19,7 @@ import KeyboardArrowLeftIcon from "@mui/icons-material/KeyboardArrowLeft";
 import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 import KeyboardDoubleArrowLeftIcon from "@mui/icons-material/KeyboardDoubleArrowLeft";
 import KeyboardDoubleArrowRightIcon from "@mui/icons-material/KeyboardDoubleArrowRight";
-import {
-  Container,
-  IconButton,
-  MenuItem,
-  Select,
-  styled as muiStyled,
-  Typography,
-} from "@mui/material";
+import { Container, IconButton, MenuItem, Select, Typography } from "@mui/material";
 import { noop } from "lodash";
 import {
   useTable,
@@ -36,6 +29,7 @@ import {
   Column,
   ColumnWithLooseAccessor,
 } from "react-table";
+import { makeStyles } from "tss-react/mui";
 
 import EmptyState from "@foxglove/studio-base/components/EmptyState";
 import Stack from "@foxglove/studio-base/components/Stack";
@@ -43,61 +37,59 @@ import Stack from "@foxglove/studio-base/components/Stack";
 import TableCell from "./TableCell";
 import { sanitizeAccessorPath } from "./sanitizeAccessorPath";
 
-export const StyledTable = muiStyled("table")(({ theme }) => ({
-  border: "none",
-  width: "100%",
-  borderCollapse: "collapse",
-  borderSpacing: 0,
-
-  th: {
-    color: theme.palette.text.primary,
-
-    "tr:first-of-type &": {
-      paddingTop: theme.spacing(0.5),
-      paddingBottom: theme.spacing(0.5),
+const useStyles = makeStyles()((theme) => ({
+  iconButton: {
+    "&:hover": {
+      backgroundColor: "transparent",
     },
   },
-  "th, td": {
-    verticalAlign: "top",
-    border: `1px solid ${theme.palette.divider}`,
-    padding: "0 0.3em",
-    lineHeight: "1.3em",
-  },
-  tr: {
-    svg: {
-      opacity: 0.6,
+  table: {
+    border: "none",
+    width: "100%",
+    borderCollapse: "collapse",
+    borderSpacing: 0,
+
+    th: {
+      color: theme.palette.text.primary,
+
+      "tr:first-of-type &": {
+        paddingTop: theme.spacing(0.5),
+        paddingBottom: theme.spacing(0.5),
+      },
     },
-  },
-  "tr:hover": {
     td: {
-      backgroundColor: theme.palette.action.hover,
-      cursor: "pointer",
+      padding: `${theme.spacing(0.5)} !important`,
+      whiteSpace: "nowrap",
+      textOverflow: "ellipsis",
     },
-    svg: {
-      opacity: 0.8,
+    "th, td": {
+      verticalAlign: "top",
+      border: `1px solid ${theme.palette.divider}`,
+      padding: "0 0.3em",
+      lineHeight: "1.3em",
+    },
+    tr: {
+      "&:nth-child(even)": {
+        backgroundColor: theme.palette.action.hover,
+      },
+      "&:hover": {
+        backgroundColor: theme.palette.action.selected,
+      },
+      svg: {
+        opacity: 0.6,
+      },
+    },
+    "tr:hover": {
+      td: {
+        backgroundColor: theme.palette.action.hover,
+        cursor: "pointer",
+      },
+      svg: {
+        opacity: 0.8,
+      },
     },
   },
-}));
-
-const SIconButton = muiStyled(IconButton)({
-  "&:hover": {
-    backgroundColor: "transparent",
-  },
-});
-
-const STableRow = muiStyled("tr")(({ theme }) => ({
-  "&:nth-child(even)": {
-    backgroundColor: theme.palette.action.hover,
-  },
-  "&:hover": {
-    backgroundColor: theme.palette.action.selected,
-  },
-}));
-
-const STableHeader = muiStyled("th", {
-  shouldForwardProp: (prop) => prop !== "isSortedAsc" && prop !== "isSortedDesc" && prop !== "id",
-})<{ id: string; isSortedAsc: boolean; isSortedDesc: boolean }>(
-  ({ theme, id, isSortedAsc, isSortedDesc }) => ({
+  tableHead: {
     borderLeftColor: "transparent !important",
     borderRightColor: "transparent !important",
     padding: `${theme.spacing(0.5)} !important`,
@@ -105,28 +97,22 @@ const STableHeader = muiStyled("th", {
     cursor: "pointer",
     width: "auto",
     textAlign: "left",
-
-    ...(isSortedAsc && {
-      borderBottomColor: `${theme.palette.primary.main} !important`,
-    }),
-    ...(isSortedDesc && {
-      borderTopColor: `${theme.palette.primary.main} !important`,
-    }),
-    ...(id === "expander" && {
-      width: 25,
-    }),
-  }),
-);
-
-const STableData = muiStyled("td")(({ theme }) => ({
-  padding: `${theme.spacing(0.5)} !important`,
-  whiteSpace: "nowrap",
-  textOverflow: "ellipsis",
+  },
+  expander: {
+    width: theme.spacing(3),
+  },
+  sortedAsc: {
+    borderBottomColor: `${theme.palette.primary.main} !important`,
+  },
+  sortedDesc: {
+    borderTopColor: `${theme.palette.primary.main} !important`,
+  },
 }));
 
 function getColumnsFromObject(
   val: { toJSON?: () => Record<string, unknown> },
   accessorPath: string,
+  classes: { [key: string]: string },
 ): Column[] {
   const obj = val.toJSON?.() ?? val;
   const columns = [
@@ -158,14 +144,15 @@ function getColumnsFromObject(
   ];
 
   const Cell: ColumnWithLooseAccessor["Cell"] = ({ row }) => (
-    <SIconButton
+    <IconButton
+      className={classes.iconButton}
       {...row.getToggleRowExpandedProps()}
       size="small"
       data-testid={`expand-row-${row.index}`}
       style={{ margin: -4 }}
     >
       {row.isExpanded ? <MinusIcon fontSize="small" /> : <PlusIcon fontSize="small" />}
-    </SIconButton>
+    </IconButton>
   );
 
   if (accessorPath.length === 0) {
@@ -185,6 +172,7 @@ export default function Table({
   value: unknown;
   accessorPath: string;
 }): JSX.Element {
+  const { classes, cx } = useStyles();
   const isNested = accessorPath.length > 0;
   const columns = React.useMemo(() => {
     if (
@@ -201,8 +189,8 @@ export default function Table({
 
     // Strong assumption about structure of data.
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-    return getColumnsFromObject(maybeMessage, accessorPath);
-  }, [accessorPath, value]);
+    return getColumnsFromObject(maybeMessage, accessorPath, classes);
+  }, [accessorPath, classes, value]);
 
   const data = React.useMemo(() => (Array.isArray(value) ? value : [value]), [value]);
 
@@ -251,46 +239,42 @@ export default function Table({
 
   return (
     <>
-      <StyledTable {...getTableProps()}>
+      <table className={classes.table} {...getTableProps()}>
         <thead>
-          {headerGroups.map((headerGroup, i) => {
-            return (
-              <STableRow {...headerGroup.getHeaderGroupProps()} key={i}>
-                {headerGroup.headers.map((column) => {
-                  return (
-                    <STableHeader
-                      isSortedAsc={column.isSorted && !(column.isSortedDesc ?? false)}
-                      isSortedDesc={column.isSorted && (column.isSortedDesc ?? false)}
-                      id={column.id}
-                      {...column.getHeaderProps(column.getSortByToggleProps())}
-                      key={column.id}
-                      data-testid={`column-header-${sanitizeAccessorPath(column.id)}`}
-                    >
-                      {column.render("Header")}
-                    </STableHeader>
-                  );
-                })}
-              </STableRow>
-            );
-          })}
+          {headerGroups.map((headerGroup, i) => (
+            <tr {...headerGroup.getHeaderGroupProps()} key={i}>
+              {headerGroup.headers.map((column) => (
+                <th
+                  className={cx(classes.tableHead, {
+                    [classes.expander]: column.id === "expander",
+                    [classes.sortedAsc]: column.isSorted && !(column.isSortedDesc ?? false),
+                    [classes.sortedDesc]: column.isSorted && (column.isSortedDesc ?? false),
+                  })}
+                  {...column.getHeaderProps(column.getSortByToggleProps())}
+                  key={column.id}
+                  data-testid={`column-header-${sanitizeAccessorPath(column.id)}`}
+                >
+                  {column.render("Header")}
+                </th>
+              ))}
+            </tr>
+          ))}
         </thead>
         <tbody {...getTableBodyProps()}>
           {(!isNested ? page : rows).map((row) => {
             prepareRow(row);
             return (
-              <STableRow {...row.getRowProps()} key={row.index}>
-                {row.cells.map((cell, i) => {
-                  return (
-                    <STableData {...cell.getCellProps()} key={i}>
-                      {cell.render("Cell")}
-                    </STableData>
-                  );
-                })}
-              </STableRow>
+              <tr {...row.getRowProps()} key={row.index}>
+                {row.cells.map((cell, i) => (
+                  <td {...cell.getCellProps()} key={i}>
+                    {cell.render("Cell")}
+                  </td>
+                ))}
+              </tr>
             );
           })}
         </tbody>
-      </StyledTable>
+      </table>
       {!isNested && (
         <Container maxWidth="xs" disableGutters>
           <Stack
