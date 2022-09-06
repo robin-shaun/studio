@@ -5,26 +5,21 @@
 import { HTMLAttributes } from "react";
 import { makeStyles } from "tss-react/mui";
 
-const useStyles = makeStyles()((theme) => ({
+const useStyles = makeStyles<{ color: string }>()((theme, { color }) => ({
   root: {
     aspectRatio: "1/1",
     width: theme.spacing(3),
     margin: theme.spacing(0.625),
     borderRadius: 1,
-    border: `1px solid ${theme.palette.divider}`,
+    backgroundColor: color,
+    border: `1px solid ${theme.palette.getContrastText(color)}`,
   },
 }));
 
 export function ColorSwatch(
   props: { color: string } & HTMLAttributes<HTMLDivElement>,
 ): JSX.Element {
-  const { className, color, style } = props;
-  const { classes, cx } = useStyles();
-  return (
-    <div
-      className={cx(className, classes.root)}
-      style={{ ...style, backgroundColor: color }}
-      {...props}
-    />
-  );
+  const { className, color } = props;
+  const { classes, cx } = useStyles({ color });
+  return <div className={cx(className, classes.root)} {...props} />;
 }
