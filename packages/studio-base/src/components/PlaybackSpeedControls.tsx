@@ -4,15 +4,9 @@
 
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import CheckIcon from "@mui/icons-material/Check";
-import {
-  Button,
-  ListItemIcon,
-  ListItemText,
-  Menu,
-  MenuItem,
-  styled as muiStyled,
-} from "@mui/material";
+import { Button, ListItemIcon, ListItemText, Menu, MenuItem } from "@mui/material";
 import { useCallback, useEffect, useState } from "react";
+import { makeStyles } from "tss-react/mui";
 
 import { useMessagePipeline } from "@foxglove/studio-base/components/MessagePipeline";
 import {
@@ -28,12 +22,15 @@ const formatSpeed = (val: number) => `${val < 0.1 ? val.toFixed(2) : val}×`;
 const configSpeedSelector = (state: LayoutState) =>
   state.selectedLayout?.data?.playbackConfig.speed;
 
-const StyledButton = muiStyled(Button)(({ theme }) => ({
-  paddingTop: theme.spacing(1),
-  paddingBottom: theme.spacing(1),
+const useStyles = makeStyles()((theme) => ({
+  button: {
+    paddingTop: theme.spacing(1),
+    paddingBottom: theme.spacing(1),
+  },
 }));
 
 export default function PlaybackSpeedControls(): JSX.Element {
+  const { classes } = useStyles();
   const [anchorEl, setAnchorEl] = useState<undefined | HTMLElement>(undefined);
   const open = Boolean(anchorEl);
   const configSpeed = useCurrentLayoutSelector(configSpeedSelector);
@@ -69,7 +66,8 @@ export default function PlaybackSpeedControls(): JSX.Element {
 
   return (
     <>
-      <StyledButton
+      <Button
+        className={classes.button}
         id="playback-speed-button"
         aria-controls={open ? "playback-speed-menu" : undefined}
         aria-haspopup="true"
@@ -83,7 +81,7 @@ export default function PlaybackSpeedControls(): JSX.Element {
         endIcon={<ArrowDropDownIcon />}
       >
         {displayedSpeed == undefined ? "–" : formatSpeed(displayedSpeed)}
-      </StyledButton>
+      </Button>
       <Menu
         id="playback-speed-menu"
         anchorEl={anchorEl}
