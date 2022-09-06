@@ -13,9 +13,9 @@ import {
   DialogActions,
   TextField,
   Typography,
-  styled as muiStyled,
 } from "@mui/material";
 import { useCallback, useMemo, useState } from "react";
+import { makeStyles } from "tss-react/mui";
 
 import CopyButton from "@foxglove/studio-base/components/CopyButton";
 import HoverableIconButton from "@foxglove/studio-base/components/HoverableIconButton";
@@ -31,13 +31,15 @@ type Props = {
   title: string;
 };
 
-const StyledTextarea = muiStyled(TextField)(({ theme }) => ({
-  ".MuiOutlinedInput-root": {
-    backgroundColor: theme.palette.action.hover,
-    fontFamily: fonts.MONOSPACE,
-    maxHeight: "60vh",
-    overflowY: "auto",
-    padding: theme.spacing(0.25),
+const useStyles = makeStyles()((theme) => ({
+  textarea: {
+    ".MuiOutlinedInput-root": {
+      backgroundColor: theme.palette.action.hover,
+      fontFamily: fonts.MONOSPACE,
+      maxHeight: "60vh",
+      overflowY: "auto",
+      padding: theme.spacing(0.25),
+    },
   },
 }));
 
@@ -48,6 +50,7 @@ export default function ShareJsonModal({
   noun,
   title,
 }: Props): JSX.Element {
+  const { classes } = useStyles();
   const [value, setValue] = useState(JSON.stringify(initialValue, undefined, 2) ?? "");
 
   const { decodedValue, error } = useMemo(() => {
@@ -90,7 +93,8 @@ export default function ShareJsonModal({
         </IconButton>
       </Stack>
       <DialogContent>
-        <StyledTextarea
+        <TextField
+          className={classes.textarea}
           fullWidth
           multiline
           rows={10}
