@@ -2,19 +2,12 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import {
-  Button,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemText,
-  Typography,
-  styled as muiStyled,
-} from "@mui/material";
+import { Button, List, ListItem, ListItemButton, ListItemText, Typography } from "@mui/material";
 import { differenceWith, groupBy, isEmpty, keyBy } from "lodash";
 import { useEffect, useMemo, useState } from "react";
 import { useAsyncFn } from "react-use";
 import { DeepReadonly } from "ts-essentials";
+import { makeStyles } from "tss-react/mui";
 
 import Log from "@foxglove/log";
 import { ExtensionDetails } from "@foxglove/studio-base/components/ExtensionDetails";
@@ -30,9 +23,9 @@ import helpContent from "./index.help.md";
 
 const log = Log.getLogger(__filename);
 
-const StyledListItemButton = muiStyled(ListItemButton)(({ theme }) => ({
-  "&:hover": {
-    color: theme.palette.primary.main,
+const useStyles = makeStyles()((theme) => ({
+  listItemButton: {
+    "&:hover": { color: theme.palette.primary.main },
   },
 }));
 
@@ -49,13 +42,14 @@ function ExtensionListEntry(props: {
   entry: DeepReadonly<ExtensionMarketplaceDetail>;
   onClick: () => void;
 }): JSX.Element {
+  const { classes } = useStyles();
   const {
     entry: { id, description, name, publisher, version },
     onClick,
   } = props;
   return (
     <ListItem disablePadding key={id}>
-      <StyledListItemButton onClick={onClick}>
+      <ListItemButton className={classes.listItemButton} onClick={onClick}>
         <ListItemText
           disableTypography
           primary={
@@ -79,7 +73,7 @@ function ExtensionListEntry(props: {
             </Stack>
           }
         />
-      </StyledListItemButton>
+      </ListItemButton>
     </ListItem>
   );
 }
