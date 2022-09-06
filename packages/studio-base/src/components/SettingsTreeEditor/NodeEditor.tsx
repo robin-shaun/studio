@@ -7,18 +7,11 @@ import ArrowRightIcon from "@mui/icons-material/ArrowRight";
 import CheckIcon from "@mui/icons-material/Check";
 import EditIcon from "@mui/icons-material/Edit";
 import ErrorIcon from "@mui/icons-material/Error";
-import {
-  Divider,
-  IconButton,
-  InputBase,
-  styled as muiStyled,
-  Tooltip,
-  Typography,
-  useTheme,
-} from "@mui/material";
+import { Divider, IconButton, InputBase, Tooltip, Typography, useTheme } from "@mui/material";
 import memoizeWeak from "memoize-weak";
 import { ChangeEvent, useCallback } from "react";
 import { DeepReadonly } from "ts-essentials";
+import { makeStyles } from "tss-react/mui";
 import { useImmer } from "use-immer";
 
 import { filterMap } from "@foxglove/den/collection";
@@ -42,19 +35,17 @@ export type NodeEditorProps = {
 
 export const NODE_HEADER_MIN_HEIGHT = 35;
 
-const FieldPadding = muiStyled("div", { skipSx: true })(({ theme }) => ({
-  gridColumn: "span 2",
-  height: theme.spacing(0.5),
-}));
-
-const EditButton = muiStyled(IconButton)(({ theme }) => ({
-  padding: theme.spacing(0.5),
-}));
-
-const NodeHeader = muiStyled("div", {
-  shouldForwardProp: (prop) => prop !== "visible",
-})<{ visible: boolean }>(({ theme, visible }) => {
-  return {
+const useStyles = makeStyles<{
+  indent?: number;
+}>()((theme, { indent = 0 }) => ({
+  fieldPadding: {
+    gridColumn: "span 2",
+    height: theme.spacing(0.5),
+  },
+  editButton: {
+    padding: theme.spacing(0.5),
+  },
+  nodeHeader: {
     display: "flex",
     gridColumn: "span 2",
     paddingRight: theme.spacing(0.5),
@@ -62,13 +53,11 @@ const NodeHeader = muiStyled("div", {
 
     "@media (pointer: fine)": {
       ".MuiCheckbox-root": {
-        visibility: visible ? "hidden" : "visible",
+        visibility: "visible",
       },
-
       "[data-node-function=edit-label]": {
         visibility: "hidden",
       },
-
       "&:hover": {
         backgroundColor: theme.palette.action.hover,
 
@@ -81,43 +70,41 @@ const NodeHeader = muiStyled("div", {
         },
       },
     },
-  };
-});
-
-const NodeHeaderToggle = muiStyled("div", {
-  shouldForwardProp: (prop) => prop !== "hasProperties" && prop !== "indent" && prop !== "visible",
-})<{ hasProperties: boolean; indent: number; visible: boolean }>(
-  ({ hasProperties, theme, indent, visible }) => {
-    return {
-      display: "grid",
-      alignItems: "center",
-      cursor: hasProperties ? "pointer" : "auto",
-      gridTemplateColumns: "auto 1fr auto",
-      marginLeft: theme.spacing(0.75 + 2 * indent),
-      opacity: visible ? 1 : 0.6,
-      position: "relative",
-      userSelect: "none",
-      width: "100%",
-    };
   },
-);
-
-const IconWrapper = muiStyled("div")({
-  position: "absolute",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  top: "50%",
-  left: 0,
-  transform: "translate(-97.5%, -50%)",
-});
+  nodeHeaderVisible: {
+    "@media (pointer: fine)": {
+      ".MuiCheckbox-root": {
+        visibility: "hidden",
+      },
+    },
+  },
+  nodeHeaderToggle: {
+    display: "grid",
+    alignItems: "center",
+    gridTemplateColumns: "auto 1fr auto",
+    marginLeft: theme.spacing(0.75 + 2 * indent),
+    position: "relative",
+    userSelect: "none",
+    width: "100%",
+  },
+  iconWrapper: {
+    position: "absolute",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    top: "50%",
+    left: 0,
+    transform: "translate(-97.5%, -50%)",
+  },
+}));
 
 function ExpansionArrow({ expanded }: { expanded: boolean }): JSX.Element {
+  const { classes } = useStyles({});
   const Component = expanded ? ArrowDownIcon : ArrowRightIcon;
   return (
-    <IconWrapper>
+    <div className={classes.iconWrapper}>
       <Component />
-    </IconWrapper>
+    </div>
   );
 }
 
@@ -131,6 +118,8 @@ function NodeEditorComponent(props: NodeEditorProps): JSX.Element {
   const indent = props.path.length;
   const allowVisibilityToggle = props.settings?.visible != undefined;
   const visible = props.settings?.visible !== false;
+
+  const { classes, cx } = useStyles({ indent });
 
   const toggleVisibility = () => {
     actionHandler({
@@ -209,12 +198,14 @@ function NodeEditorComponent(props: NodeEditorProps): JSX.Element {
 
   return (
     <>
-      <NodeHeader visible={visible}>
-        <NodeHeaderToggle
-          hasProperties={hasProperties}
-          indent={indent}
+      <div className={cx(classes.nodeHeader, { [classes.nodeHeaderVisible]: visible })}>
+        <div
           onClick={toggleOpen}
-          visible={visible}
+          className={classes.nodeHeaderToggle}
+          style={{
+            cursor: hasProperties ? "pointer" : "auto",
+            opacity: visible ? 1 : 0.6,
+          }}
         >
           {hasProperties && <ExpansionArrow expanded={state.open} />}
           {IconComponent && (
@@ -248,10 +239,11 @@ function NodeEditorComponent(props: NodeEditorProps): JSX.Element {
               <HighlightedText text={settings.label ?? "General"} highlight={filter} />
             </Typography>
           )}
-        </NodeHeaderToggle>
+        </div>
         <Stack alignItems="center" direction="row">
           {settings.renamable === true && (
-            <EditButton
+            <IconButton
+              className={classes.editButton}
               title="Rename"
               data-node-function="edit-label"
               color="primary"
@@ -261,7 +253,7 @@ function NodeEditorComponent(props: NodeEditorProps): JSX.Element {
               }}
             >
               {state.editing ? <CheckIcon fontSize="small" /> : <EditIcon fontSize="small" />}
-            </EditButton>
+            </IconButton>
           )}
           {settings.visible != undefined && (
             <VisibilityToggle
@@ -286,12 +278,12 @@ function NodeEditorComponent(props: NodeEditorProps): JSX.Element {
             </Tooltip>
           )}
         </Stack>
-      </NodeHeader>
+      </div>
       {state.open && fieldEditors.length > 0 && (
         <>
-          <FieldPadding />
+          <div className={classes.fieldPadding} />
           {fieldEditors}
-          <FieldPadding />
+          <div className={classes.fieldPadding} />
         </>
       )}
       {state.open && childNodes}

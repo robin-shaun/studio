@@ -2,33 +2,27 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import {
-  Checkbox,
-  CheckboxProps,
-  SvgIcon,
-  styled as muiStyled,
-  IconButtonProps,
-} from "@mui/material";
+import { Checkbox, CheckboxProps, SvgIcon, IconButtonProps } from "@mui/material";
+import { makeStyles } from "tss-react/mui";
 
-const StyledCheckbox = muiStyled(Checkbox, {
-  shouldForwardProp: (prop) => prop !== "size",
-})<{ size: IconButtonProps["size"] }>(({ theme, size = "medium" }) => ({
-  borderRadius: theme.shape.borderRadius,
-  padding: theme.spacing(1),
-
-  "&:hover": {
-    backgroundColor: theme.palette.action.hover,
-  },
-  ...(size === "small" && {
+const useStyles = makeStyles()((theme) => ({
+  root: {
     padding: theme.spacing(0.625),
-  }),
+    borderRadius: theme.shape.borderRadius,
+
+    "&:hover": {
+      backgroundColor: theme.palette.action.hover,
+    },
+  },
 }));
 
 export function VisibilityToggle(
   props: CheckboxProps & { size: IconButtonProps["size"] },
 ): JSX.Element {
+  const { classes } = useStyles();
   return (
-    <StyledCheckbox
+    <Checkbox
+      className={classes.root}
       {...props}
       title="Toggle visibility"
       icon={

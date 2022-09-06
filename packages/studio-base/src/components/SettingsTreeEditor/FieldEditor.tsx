@@ -9,7 +9,6 @@ import {
   ToggleButton,
   ToggleButtonGroup,
   Typography,
-  styled as muiStyled,
   List,
   MenuItem,
   Select,
@@ -18,6 +17,7 @@ import {
   ListProps,
 } from "@mui/material";
 import { DeepReadonly } from "ts-essentials";
+import { makeStyles } from "tss-react/mui";
 import { v4 as uuid } from "uuid";
 
 import { SettingsTreeAction, SettingsTreeField } from "@foxglove/studio";
@@ -29,82 +29,79 @@ import { ColorPickerInput, ColorGradientInput, NumberInput, Vec3Input, Vec2Input
 // Used to both undefined and empty string in select inputs.
 const UNDEFINED_SENTINEL_VALUE = uuid();
 
-const StyledToggleButtonGroup = muiStyled(ToggleButtonGroup)(({ theme }) => ({
-  backgroundColor: theme.palette.action.hover,
-  gap: theme.spacing(0.25),
-
-  "& .MuiToggleButtonGroup-grouped": {
-    margin: theme.spacing(0.55),
-    borderRadius: theme.shape.borderRadius,
-    paddingTop: 0,
-    paddingBottom: 0,
-    borderColor: "transparent",
-    lineHeight: 1.75,
-
-    "&.Mui-selected": {
-      background: theme.palette.background.paper,
-      borderColor: "transparent",
-
-      "&:hover": {
-        borderColor: theme.palette.action.active,
-      },
-    },
-    "&:not(:first-of-type)": {
-      borderRadius: theme.shape.borderRadius,
-    },
-    "&:first-of-type": {
-      borderRadius: theme.shape.borderRadius,
-    },
-  },
-}));
-
-const PsuedoInputWrapper = muiStyled(Stack)(({ theme }) => {
+const useStyles = makeStyles()((theme) => {
   const prefersDarkMode = theme.palette.mode === "dark";
   const backgroundColor = prefersDarkMode ? "rgba(255, 255, 255, 0.09)" : "rgba(0, 0, 0, 0.06)";
 
   return {
-    padding: theme.spacing(0.75, 1),
-    borderRadius: theme.shape.borderRadius,
-    fontSize: "0.75em",
-    backgroundColor,
+    toggleButtonGroup: {
+      backgroundColor: theme.palette.action.hover,
+      gap: theme.spacing(0.25),
 
-    input: {
-      height: "1.4375em",
+      "& .MuiToggleButtonGroup-grouped": {
+        margin: theme.spacing(0.55),
+        borderRadius: theme.shape.borderRadius,
+        paddingTop: 0,
+        paddingBottom: 0,
+        borderColor: "transparent",
+        lineHeight: 1.75,
+
+        "&.Mui-selected": {
+          background: theme.palette.background.paper,
+          borderColor: "transparent",
+
+          "&:hover": {
+            borderColor: theme.palette.action.active,
+          },
+        },
+        "&:not(:first-of-type)": {
+          borderRadius: theme.shape.borderRadius,
+        },
+        "&:first-of-type": {
+          borderRadius: theme.shape.borderRadius,
+        },
+      },
     },
-    "&:hover": {
-      backgroundColor: prefersDarkMode ? "rgba(255, 255, 255, 0.13)" : "rgba(0, 0, 0, 0.09)",
-      // Reset on touch devices, it doesn't add specificity
-      "@media (hover: none)": {
+    inputWrapper: {
+      display: "flex",
+      padding: theme.spacing(0.75, 1),
+      borderRadius: theme.shape.borderRadius,
+      fontSize: "0.75em",
+      backgroundColor,
+
+      input: {
+        height: "1.4375em",
+      },
+      "&:hover": {
+        backgroundColor: prefersDarkMode ? "rgba(255, 255, 255, 0.13)" : "rgba(0, 0, 0, 0.09)",
+        // Reset on touch devices, it doesn't add specificity
+        "@media (hover: none)": {
+          backgroundColor,
+        },
+      },
+      "&:focus-within": {
         backgroundColor,
       },
     },
-    "&:focus-within": {
-      backgroundColor,
+    fieldWrapper: {
+      marginRight: theme.spacing(1.25),
+    },
+    fieldWrapperError: {
+      ".MuiInputBase-root": {
+        outline: `1px ${theme.palette.error.main} solid`,
+        outlineOffset: -1,
+      },
+    },
+    multiLabelWrapper: {
+      display: "grid",
+      gridTemplateColumns: "1fr auto",
+      columnGap: theme.spacing(0.5),
+      height: "100%",
+      width: "100%",
+      alignItems: "center",
     },
   };
 });
-
-const MultiLabelWrapper = muiStyled("div")(({ theme }) => ({
-  display: "grid",
-  gridTemplateColumns: "1fr auto",
-  columnGap: theme.spacing(0.5),
-  height: "100%",
-  width: "100%",
-  alignItems: "center",
-}));
-
-const FieldWrapper = muiStyled("div", {
-  shouldForwardProp: (prop) => prop !== "error",
-})<{ error: boolean }>(({ error, theme }) => ({
-  marginRight: theme.spacing(1.25),
-
-  ...(error && {
-    ".MuiInputBase-root": {
-      outline: `1px ${theme.palette.error.main} solid`,
-      outlineOffset: -1,
-    },
-  }),
-}));
 
 function FieldInput({
   actionHandler,
@@ -115,6 +112,8 @@ function FieldInput({
   field: DeepReadonly<SettingsTreeField>;
   path: readonly string[];
 }): JSX.Element {
+  const { classes } = useStyles();
+
   switch (field.input) {
     case "autocomplete":
       return (
@@ -167,7 +166,8 @@ function FieldInput({
       );
     case "toggle":
       return (
-        <StyledToggleButtonGroup
+        <ToggleButtonGroup
+          className={classes.toggleButtonGroup}
           fullWidth
           value={field.value ?? UNDEFINED_SENTINEL_VALUE}
           exclusive
@@ -194,7 +194,7 @@ function FieldInput({
               {typeof opt === "string" ? opt : opt.label}
             </ToggleButton>
           ))}
-        </StyledToggleButtonGroup>
+        </ToggleButtonGroup>
       );
     case "string":
       return (
@@ -218,7 +218,8 @@ function FieldInput({
       );
     case "boolean":
       return (
-        <StyledToggleButtonGroup
+        <ToggleButtonGroup
+          className={classes.toggleButtonGroup}
           fullWidth
           value={field.value ?? false}
           exclusive
@@ -235,7 +236,7 @@ function FieldInput({
         >
           <ToggleButton value={true}>On</ToggleButton>
           <ToggleButton value={false}>Off</ToggleButton>
-        </StyledToggleButtonGroup>
+        </ToggleButtonGroup>
       );
     case "rgb":
       return (
@@ -271,7 +272,7 @@ function FieldInput({
       );
     case "messagepath":
       return (
-        <PsuedoInputWrapper direction="row">
+        <div className={classes.inputWrapper}>
           <MessagePathInput
             path={field.value ?? ""}
             disabled={field.disabled}
@@ -284,7 +285,7 @@ function FieldInput({
             }
             validTypes={field.validTypes}
           />
-        </PsuedoInputWrapper>
+        </div>
       );
     case "select":
       return (
@@ -365,11 +366,13 @@ function FieldInput({
 }
 
 function FieldLabel({ field }: { field: DeepReadonly<SettingsTreeField> }): JSX.Element {
+  const { classes } = useStyles();
+
   if (field.input === "vec2") {
     const labels = field.labels ?? ["X", "Y"];
     return (
       <>
-        <MultiLabelWrapper>
+        <div className={classes.multiLabelWrapper}>
           <Typography
             title={field.label}
             variant="subtitle2"
@@ -392,14 +395,14 @@ function FieldLabel({ field }: { field: DeepReadonly<SettingsTreeField> }): JSX.
               {label}
             </Typography>
           ))}
-        </MultiLabelWrapper>
+        </div>
       </>
     );
   } else if (field.input === "vec3") {
     const labels = field.labels ?? ["X", "Y", "Z"];
     return (
       <>
-        <MultiLabelWrapper>
+        <div className={classes.multiLabelWrapper}>
           <Typography
             title={field.label}
             variant="subtitle2"
@@ -422,7 +425,7 @@ function FieldLabel({ field }: { field: DeepReadonly<SettingsTreeField> }): JSX.
               {label}
             </Typography>
           ))}
-        </MultiLabelWrapper>
+        </div>
       </>
     );
   } else {
@@ -451,6 +454,7 @@ function FieldEditorComponent({
   field: DeepReadonly<SettingsTreeField>;
   path: readonly string[];
 }): JSX.Element {
+  const { classes, cx } = useStyles();
   const indent = Math.min(path.length, 4);
   const paddingLeft = 0.75 + 2 * (indent - 1);
 
@@ -468,9 +472,13 @@ function FieldEditorComponent({
           </Tooltip>
         )}
       </Stack>
-      <FieldWrapper error={field.error != undefined}>
+      <div
+        className={cx(classes.fieldWrapper, {
+          [classes.fieldWrapperError]: field.error != undefined,
+        })}
+      >
         <FieldInput actionHandler={actionHandler} field={field} path={path} />
-      </FieldWrapper>
+      </div>
       <Stack paddingBottom={0.25} style={{ gridColumn: "span 2" }} />
     </>
   );

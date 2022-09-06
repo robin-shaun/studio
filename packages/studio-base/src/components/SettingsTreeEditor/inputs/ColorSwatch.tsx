@@ -2,15 +2,29 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { styled as muiStyled } from "@mui/material";
+import { HTMLAttributes } from "react";
+import { makeStyles } from "tss-react/mui";
 
-export const ColorSwatch = muiStyled("div", {
-  shouldForwardProp: (prop) => prop !== "color",
-})<{ color: string }>(({ theme, color }) => ({
-  backgroundColor: color,
-  aspectRatio: "1/1",
-  width: theme.spacing(3),
-  margin: theme.spacing(0.625),
-  borderRadius: 1,
-  border: `1px solid ${theme.palette.getContrastText(color)}`,
+const useStyles = makeStyles()((theme) => ({
+  root: {
+    aspectRatio: "1/1",
+    width: theme.spacing(3),
+    margin: theme.spacing(0.625),
+    borderRadius: 1,
+    borderColor: theme.palette.divider,
+  },
 }));
+
+export function ColorSwatch(
+  props: { color: string } & HTMLAttributes<HTMLDivElement>,
+): JSX.Element {
+  const { className, color, style } = props;
+  const { classes, cx } = useStyles();
+  return (
+    <div
+      className={cx(className, classes.root)}
+      style={{ ...style, backgroundColor: color }}
+      {...props}
+    />
+  );
+}

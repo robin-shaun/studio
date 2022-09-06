@@ -2,15 +2,9 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import {
-  Button,
-  ButtonProps,
-  Menu,
-  MenuItem,
-  styled as muiStyled,
-  Typography,
-} from "@mui/material";
+import { Button, ButtonProps, Menu, MenuItem, Typography } from "@mui/material";
 import { useState } from "react";
+import { makeStyles } from "tss-react/mui";
 
 const COLOR_SCALE_OPTIONS: [string, string[]][] = [
   [
@@ -111,26 +105,26 @@ const COLOR_SCALE_OPTIONS: [string, string[]][] = [
   ],
 ];
 
-const StyledButton = muiStyled(Button)(({ theme }) => ({
-  padding: theme.spacing(0.5),
-  backgroundColor: theme.palette.action.hover,
-  borderColor: theme.palette.divider,
-  display: "flex",
-}));
-
-const ColorScale = muiStyled("div", {
-  shouldForwardProp: (prop) => prop !== "colorScale",
-})<{ colorScale: string[] }>(({ theme, colorScale }) => ({
-  paddingBottom: theme.spacing(2.5),
-  backgroundImage: `linear-gradient(to right, ${colorScale.join(",")})`,
-  flex: "auto",
+const useStyles = makeStyles()((theme) => ({
+  button: {
+    padding: theme.spacing(0.5),
+    backgroundColor: theme.palette.action.hover,
+    borderColor: theme.palette.divider,
+    display: "flex",
+  },
+  colorScale: {
+    paddingBottom: theme.spacing(2.5),
+    flex: "auto",
+  },
 }));
 
 // ts-prune-ignore-next
 export function ColorScalePicker(props: ColorScalePickerProps): JSX.Element {
+  const { classes } = useStyles();
   const [selectedOption, setSelectedOption] = useState<number>(0);
-  const [anchorEl, setAnchorEl] = React.useState<undefined | HTMLElement>(undefined);
+  const [anchorEl, setAnchorEl] = useState<undefined | HTMLElement>(undefined);
   const open = Boolean(anchorEl);
+
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     setAnchorEl(event.currentTarget);
   };
@@ -140,7 +134,8 @@ export function ColorScalePicker(props: ColorScalePickerProps): JSX.Element {
 
   return (
     <>
-      <StyledButton
+      <Button
+        className={classes.button}
         variant="outlined"
         fullWidth
         id="colorscale-button"
@@ -150,8 +145,15 @@ export function ColorScalePicker(props: ColorScalePickerProps): JSX.Element {
         onClick={handleClick}
         {...props}
       >
-        <ColorScale colorScale={COLOR_SCALE_OPTIONS[selectedOption]?.[1] ?? ["black"]} />
-      </StyledButton>
+        <div
+          className={classes.colorScale}
+          style={{
+            backgroundImage: `linear-gradient(to right, ${(
+              COLOR_SCALE_OPTIONS[selectedOption]?.[1] ?? ["black"]
+            ).join(",")})`,
+          }}
+        />
+      </Button>
       <Menu
         id="colorscale-menu"
         anchorEl={anchorEl}
@@ -161,11 +163,7 @@ export function ColorScalePicker(props: ColorScalePickerProps): JSX.Element {
           "aria-labelledby": "colorscale-button",
           disablePadding: true,
         }}
-        PaperProps={{
-          sx: {
-            minWidth: 280,
-          },
-        }}
+        PaperProps={{ style: { minWidth: 280 } }}
       >
         {COLOR_SCALE_OPTIONS.map(([name, colorScale], idx) => (
           <MenuItem
@@ -183,7 +181,10 @@ export function ColorScalePicker(props: ColorScalePickerProps): JSX.Element {
             <Typography variant="button" style={{ width: 60 }}>
               {name}
             </Typography>
-            <ColorScale colorScale={colorScale} />
+            <div
+              className={classes.colorScale}
+              style={{ backgroundImage: `linear-gradient(to right, ${colorScale.join(",")})` }}
+            />
           </MenuItem>
         ))}
       </Menu>
