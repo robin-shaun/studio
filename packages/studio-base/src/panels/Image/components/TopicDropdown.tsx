@@ -3,8 +3,9 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
-import { Button, styled as muiStyled, Menu, MenuItem } from "@mui/material";
+import { Button, Menu, MenuItem } from "@mui/material";
 import { MouseEvent, useState, useCallback } from "react";
+import { makeStyles } from "tss-react/mui";
 
 import { Topic } from "@foxglove/studio";
 import TextMiddleTruncate from "@foxglove/studio-base/panels/ThreeDimensionalViz/TopicTree/TextMiddleTruncate";
@@ -15,21 +16,24 @@ type TopicDropdownProps = {
   onChange: (topic: Topic["name"]) => void;
 };
 
-const StyledButton = muiStyled(Button)(({ theme }) => ({
-  backgroundColor: "transparent",
-  paddingTop: theme.spacing(0.375),
-  paddingBottom: theme.spacing(0.375),
-  color: theme.palette.text.secondary,
-  overflow: "hidden",
+const useStyles = makeStyles()((theme) => ({
+  button: {
+    backgroundColor: "transparent",
+    paddingTop: theme.spacing(0.375),
+    paddingBottom: theme.spacing(0.375),
+    color: theme.palette.text.secondary,
+    overflow: "hidden",
 
-  "&:hover": {
-    backgroundColor: theme.palette.action.hover,
-    color: theme.palette.text.primary,
+    "&:hover": {
+      backgroundColor: theme.palette.action.hover,
+      color: theme.palette.text.primary,
+    },
   },
 }));
 
 export function TopicDropdown(props: TopicDropdownProps): JSX.Element {
   const { topics, currentTopic, onChange } = props;
+  const { classes } = useStyles();
   const [anchorEl, setAnchorEl] = useState<undefined | HTMLElement>(undefined);
   const open = Boolean(anchorEl);
 
@@ -51,7 +55,8 @@ export function TopicDropdown(props: TopicDropdownProps): JSX.Element {
 
   return (
     <>
-      <StyledButton
+      <Button
+        className={classes.button}
         size="small"
         id="topic-button"
         disableRipple
@@ -80,7 +85,7 @@ export function TopicDropdown(props: TopicDropdownProps): JSX.Element {
         ) : (
           "Select a camera topic"
         )}
-      </StyledButton>
+      </Button>
       <Menu
         id="topic-menu"
         anchorEl={anchorEl}

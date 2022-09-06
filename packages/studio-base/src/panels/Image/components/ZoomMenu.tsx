@@ -13,33 +13,32 @@ import {
   ToggleButton,
   ToggleButtonGroup,
   Typography,
-  styled as muiStyled,
   Divider,
 } from "@mui/material";
 import { MouseEvent, useCallback, useRef, useState } from "react";
+import { makeStyles } from "tss-react/mui";
 
 import Stack from "@foxglove/studio-base/components/Stack";
 import { usePanelMousePresence } from "@foxglove/studio-base/hooks/usePanelMousePresence";
 
-const StyledCard = muiStyled(Card, {
-  shouldForwardProp: (prop) => prop !== "visible",
-})<{
-  visible: boolean;
-}>(({ visible, theme }) => ({
-  position: "absolute",
-  bottom: 0,
-  left: 0,
-  zIndex: theme.zIndex.tooltip,
-  margin: theme.spacing(0.75),
-  visibility: visible ? "visible" : "hidden",
+const useStyles = makeStyles()((theme) => ({
+  card: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    zIndex: theme.zIndex.tooltip,
+    margin: theme.spacing(0.75),
 
-  ".hoverScreenshot &": {
-    opacity: 1,
+    ".hoverScreenshot &": { visibility: "visible" },
+  },
+  toggleButton: {
+    flex: "auto",
+    lineHeight: 1,
+  },
+  toggleButtonGroup: {
+    width: "100%",
   },
 }));
-
-const StyledToggleButton = muiStyled(ToggleButton)({ flex: "auto", lineHeight: 1 });
-const StyledToggleButtonGroup = muiStyled(ToggleButtonGroup)({ width: "100%" });
 
 export default function ZoomMenu({
   zoom,
@@ -55,6 +54,7 @@ export default function ZoomMenu({
   resetPanZoom: () => void;
   open?: boolean;
 }): JSX.Element {
+  const { classes } = useStyles();
   const [anchorEl, setAnchorEl] = useState<undefined | HTMLElement>(undefined);
   const ref = useRef<HTMLDivElement>(ReactNull);
   const mousePresent = usePanelMousePresence(ref);
@@ -96,10 +96,13 @@ export default function ZoomMenu({
 
   return (
     <>
-      <StyledCard
+      <Card
+        className={classes.card}
         variant="elevation"
         ref={ref}
-        visible={mousePresent || menuOpen || open}
+        style={{
+          visibility: mousePresent || menuOpen || open ? "visible" : "hidden",
+        }}
         {...props}
       >
         <IconButton
@@ -111,7 +114,7 @@ export default function ZoomMenu({
         >
           <SearchIcon fontSize="small" />
         </IconButton>
-      </StyledCard>
+      </Card>
       <Menu
         id="zoom-menu"
         anchorEl={anchorEl}
@@ -136,17 +139,21 @@ export default function ZoomMenu({
             Scroll or use the <br />
             buttons below to zoom
           </Typography>
-          <StyledToggleButtonGroup size="small" style={{ width: "100%" }}>
+          <ToggleButtonGroup
+            className={classes.toggleButtonGroup}
+            size="small"
+            style={{ width: "100%" }}
+          >
             <ToggleButton value="zoom-out" onClick={zoomOut}>
               <RemoveIcon fontSize="small" />
             </ToggleButton>
-            <StyledToggleButton disabled value="zoom-value">
+            <ToggleButton className={classes.toggleButton} disabled value="zoom-value">
               {`${Math.round(zoom * 100)}%`}
-            </StyledToggleButton>
+            </ToggleButton>
             <ToggleButton value="zoom-in" onClick={zoomIn}>
               <AddIcon fontSize="small" />
             </ToggleButton>
-          </StyledToggleButtonGroup>
+          </ToggleButtonGroup>
         </Stack>
         <Divider />
         <MenuItem divider onClick={onZoom100} data-testid="hundred-zoom">

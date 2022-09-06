@@ -3,9 +3,10 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import CursorIcon from "@mdi/svg/svg/cursor-default.svg";
-import { Typography, styled as muiStyled } from "@mui/material";
+import { Typography } from "@mui/material";
 import { ReactElement, useEffect, useRef, useState } from "react";
 import Tree from "react-json-tree";
+import { makeStyles } from "tss-react/mui";
 
 import ExpandingToolbar, {
   ToolGroup,
@@ -18,20 +19,17 @@ import { useJsonTreeTheme } from "@foxglove/studio-base/util/globalConstants";
 
 import { PixelData } from "../types";
 
-const ToolbarRoot = muiStyled("div", {
-  shouldForwardProp: (prop) => prop !== "visible",
-})<{
-  visible: boolean;
-}>(({ visible, theme }) => ({
-  displauy: "flex",
-  flexDirection: "column",
-  position: "absolute",
-  top: 0,
-  right: 0,
-  marginRight: theme.spacing(0.75),
-  marginTop: `calc(${theme.spacing(0.75)} + ${PANEL_TOOLBAR_MIN_HEIGHT}px)`,
-  zIndex: theme.zIndex.tooltip,
-  visibility: visible ? "visible" : "hidden",
+const useStyles = makeStyles()((theme) => ({
+  root: {
+    displauy: "flex",
+    flexDirection: "column",
+    position: "absolute",
+    top: 0,
+    right: 0,
+    marginRight: theme.spacing(0.75),
+    marginTop: `calc(${theme.spacing(0.75)} + ${PANEL_TOOLBAR_MIN_HEIGHT}px)`,
+    zIndex: theme.zIndex.tooltip,
+  },
 }));
 
 enum TabName {
@@ -87,6 +85,7 @@ function ObjectPane({ pixelData }: { pixelData: PixelData | undefined }): ReactE
 }
 
 export function Toolbar({ pixelData }: { pixelData: PixelData | undefined }): JSX.Element {
+  const { classes } = useStyles();
   const ref = useRef<HTMLDivElement>(ReactNull);
   const [selectedTab, setSelectedTab] = useState<TabName | undefined>();
 
@@ -101,7 +100,11 @@ export function Toolbar({ pixelData }: { pixelData: PixelData | undefined }): JS
   const mousePresent = usePanelMousePresence(ref);
 
   return (
-    <ToolbarRoot ref={ref} visible={mousePresent}>
+    <div
+      className={classes.root}
+      ref={ref}
+      style={{ visibility: mousePresent ? "visible" : "hidden" }}
+    >
       <ExpandingToolbar
         tooltip="Inspect objects"
         icon={<CursorIcon />}
@@ -118,6 +121,6 @@ export function Toolbar({ pixelData }: { pixelData: PixelData | undefined }): JS
           </ToolGroupFixedSizePane>
         </ToolGroup>
       </ExpandingToolbar>
-    </ToolbarRoot>
+    </div>
   );
 }

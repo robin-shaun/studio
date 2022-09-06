@@ -11,11 +11,12 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { Typography, styled as muiStyled } from "@mui/material";
+import { Typography } from "@mui/material";
 import produce from "immer";
 import { difference, set, union } from "lodash";
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { useUpdateEffect } from "react-use";
+import { makeStyles } from "tss-react/mui";
 
 import { SettingsTreeAction } from "@foxglove/studio";
 import { useDataSourceInfo } from "@foxglove/studio-base/PanelAPI";
@@ -49,29 +50,29 @@ type Props = {
   saveConfig: SaveImagePanelConfig;
 };
 
-const Timestamp = muiStyled(Typography, {
-  shouldForwardProp: (prop) => prop !== "screenshotTest",
-})<{ screenshotTest: boolean }>(({ screenshotTest, theme }) => ({
-  position: "absolute",
-  margin: theme.spacing(0.5),
-  right: 0,
-  bottom: 0,
-  zIndex: theme.zIndex.tooltip,
-  transition: "opacity 0.1s ease-in-out",
-  opacity: 0,
-  padding: theme.spacing(0.25, 0.5),
-  userSelect: "all",
+const useStyles = makeStyles()((theme) => ({
+  timestamp: {
+    position: "absolute",
+    margin: theme.spacing(0.5),
+    right: 0,
+    bottom: 0,
+    zIndex: theme.zIndex.tooltip,
+    transition: "opacity 0.1s ease-in-out",
+    opacity: 0,
+    padding: theme.spacing(0.25, 0.5),
+    userSelect: "all",
+    fontFamily: fonts.MONOSPACE,
+    textAlign: "right",
 
-  ".mosaic-window:hover &": {
-    opacity: "1",
+    ".mosaic-window:hover &": {
+      opacity: "1",
+    },
   },
-  ...(screenshotTest && {
-    opacity: 1,
-  }),
 }));
 
 function ImageView(props: Props) {
   const { config, saveConfig } = props;
+  const { classes } = useStyles();
   const { cameraTopic, enabledMarkerTopics, transformMarkers } = config;
   const { topics } = useDataSourceInfo();
   const cameraTopicFullObject = useMemo(
@@ -295,14 +296,13 @@ function ImageView(props: Props) {
           />
         )}
         {image && (
-          <Timestamp
-            fontFamily={fonts.MONOSPACE}
+          <Typography
             variant="caption"
-            align="right"
-            screenshotTest={inScreenshotTests()}
+            className={classes.timestamp}
+            style={{ opacity: inScreenshotTests() ? 1 : undefined }}
           >
             {formatTimeRaw(image.stamp)}
-          </Timestamp>
+          </Typography>
         )}
       </Stack>
       <Toolbar pixelData={activePixelData} />
