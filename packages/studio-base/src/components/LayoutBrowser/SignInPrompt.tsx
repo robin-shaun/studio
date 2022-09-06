@@ -3,7 +3,8 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import CloseIcon from "@mui/icons-material/Close";
-import { Link, CardHeader, IconButton, styled as muiStyled } from "@mui/material";
+import { CardHeader, IconButton, Link } from "@mui/material";
+import { makeStyles } from "tss-react/mui";
 
 import { useWorkspace } from "@foxglove/studio-base/context/WorkspaceContext";
 
@@ -11,26 +12,33 @@ type SignInPromptProps = {
   onDismiss?: () => void;
 };
 
-const StyledCardHeader = muiStyled(CardHeader)(({ theme }) => ({
-  cursor: "pointer",
-  backgroundColor: theme.palette.grey[200],
-  position: "sticky",
-  bottom: 0,
+const useStyles = makeStyles()((theme) => ({
+  cardHeader: {
+    cursor: "pointer",
+    backgroundColor: theme.palette.grey[200],
+    position: "sticky",
+    bottom: 0,
 
-  "& .MuiCardHeader-action": {
-    alignSelf: "center",
+    "&:hover": {
+      backgroundColor: theme.palette.grey[300],
+    },
   },
-  "&:hover": {
-    backgroundColor: theme.palette.grey[300],
+  cardHeaderAction: {
+    alignSelf: "center",
   },
 }));
 
 export default function SignInPrompt(props: SignInPromptProps): JSX.Element {
   const { onDismiss } = props;
+  const { classes } = useStyles();
   const { openAccountSettings } = useWorkspace();
 
   return (
-    <StyledCardHeader
+    <CardHeader
+      classes={{
+        root: classes.cardHeader,
+        action: classes.cardHeaderAction,
+      }}
       onClick={openAccountSettings}
       title={
         <>

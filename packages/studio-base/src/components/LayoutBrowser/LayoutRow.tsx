@@ -15,7 +15,6 @@ import {
   Divider,
   Typography,
   TextField,
-  styled as muiStyled,
 } from "@mui/material";
 import {
   useCallback,
@@ -28,17 +27,18 @@ import {
   useRef,
 } from "react";
 import { useMountedState } from "react-use";
+import { makeStyles } from "tss-react/mui";
 
 import { useLayoutManager } from "@foxglove/studio-base/context/LayoutManagerContext";
 import LayoutStorageDebuggingContext from "@foxglove/studio-base/context/LayoutStorageDebuggingContext";
 import { useConfirm } from "@foxglove/studio-base/hooks/useConfirm";
 import { Layout, layoutIsShared } from "@foxglove/studio-base/services/ILayoutStorage";
 
-const StyledListItem = muiStyled(ListItem, {
-  shouldForwardProp: (prop) =>
-    prop !== "hasModifications" && prop !== "deletedOnServer" && prop !== "editingName",
-})<{ editingName: boolean; hasModifications: boolean; deletedOnServer: boolean }>(
-  ({ editingName, hasModifications, deletedOnServer, theme }) => ({
+const useStyles = makeStyles<{
+  hasModifications: boolean;
+  deletedOnServer: boolean;
+}>()((theme, { hasModifications, deletedOnServer }) => ({
+  listItem: {
     ".MuiListItemSecondaryAction-root": {
       right: theme.spacing(0.25),
     },
@@ -50,31 +50,26 @@ const StyledListItem = muiStyled(ListItem, {
         paddingRight: theme.spacing(4.5),
       },
       ".MuiListItemSecondaryAction-root": {
-        visibility: !hasModifications && !deletedOnServer && "hidden",
+        visibility: !hasModifications && !deletedOnServer ? "hidden" : undefined,
       },
       "&:hover .MuiListItemSecondaryAction-root": {
         visibility: "visible",
       },
     },
-    ...(editingName && {
-      ".MuiListItemButton-root": {
-        paddingTop: theme.spacing(0.5),
-        paddingBottom: theme.spacing(0.5),
-        paddingLeft: theme.spacing(1),
-      },
-      ".MuiListItemText-root": {
-        margin: 0,
-      },
-    }),
-  }),
-);
+  },
+  listItemEditing: {
+    ".MuiListItemButton-root": {
+      paddingTop: theme.spacing(0.5),
+      paddingBottom: theme.spacing(0.5),
+      paddingLeft: theme.spacing(1),
+    },
+    ".MuiListItemText-root": {
+      margin: 0,
+    },
+  },
+  menuItemDebug: {
+    position: "relative",
 
-const StyledMenuItem = muiStyled(MenuItem, {
-  shouldForwardProp: (prop) => prop !== "debug",
-})<{ debug?: boolean }>(({ theme, debug = false }) => ({
-  position: "relative",
-
-  ...(debug && {
     "&:before": {
       content: "''",
       position: "absolute",
@@ -91,7 +86,7 @@ const StyledMenuItem = muiStyled(MenuItem, {
         `${theme.palette.common.black} 12px`,
       ].join(",")})`,
     },
-  }),
+  },
 }));
 
 export type LayoutActionMenuItem =
@@ -163,6 +158,11 @@ export default React.memo(function LayoutRow({
   const deletedOnServer = layout.syncInfo?.status === "remotely-deleted";
   const hasModifications = layout.working != undefined;
   const multiSelection = multiSelectedIds.length > 1;
+
+  const { classes, cx } = useStyles({
+    hasModifications,
+    deletedOnServer,
+  });
 
   useLayoutEffect(() => {
     const onlineListener = () => setIsOnline(layoutManager.isOnline);
@@ -444,10 +444,10 @@ export default React.memo(function LayoutRow({
   }, [editingName]);
 
   return (
-    <StyledListItem
-      editingName={editingName}
-      hasModifications={hasModifications}
-      deletedOnServer={deletedOnServer}
+    <ListItem
+      className={cx(classes.listItem, {
+        [classes.listItemEditing]: editingName,
+      })}
       disablePadding
       secondaryAction={
         <IconButton
@@ -520,8 +520,7 @@ export default React.memo(function LayoutRow({
               return <Divider key={item.key} variant="middle" />;
             case "item":
               return (
-                <StyledMenuItem
-                  debug={item.debug}
+                <MenuItem
                   disabled={item.disabled}
                   key={item.key}
                   data-testid={item["data-testid"]}
@@ -529,11 +528,12 @@ export default React.memo(function LayoutRow({
                     item.onClick?.(event);
                     handleClose();
                   }}
+                  className={cx({ [classes.menuItemDebug]: item.debug })}
                 >
                   <Typography variant="inherit" color={item.key === "delete" ? "error" : undefined}>
                     {item.text}
                   </Typography>
-                </StyledMenuItem>
+                </MenuItem>
               );
             case "header":
               return (
@@ -546,6 +546,6 @@ export default React.memo(function LayoutRow({
           }
         })}
       </Menu>
-    </StyledListItem>
+    </ListItem>
   );
 });
