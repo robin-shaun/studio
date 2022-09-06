@@ -15,9 +15,9 @@ import {
   IconButton,
   MenuItem,
   Select,
-  styled as muiStyled,
 } from "@mui/material";
 import { useCallback } from "react";
+import { makeStyles } from "tss-react/mui";
 
 import ColorPicker from "@foxglove/studio-base/components/ColorPicker";
 import Stack from "@foxglove/studio-base/components/Stack";
@@ -37,10 +37,12 @@ type PathSettingsModalProps = {
   onDismiss: () => void;
 };
 
-const StyledDialogTitle = muiStyled(DialogTitle)({
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
+const useStyles = makeStyles()({
+  dialogTitle: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
 });
 
 export default function PathSettingsModal({
@@ -51,6 +53,7 @@ export default function PathSettingsModal({
   savePaths,
   onDismiss,
 }: PathSettingsModalProps): JSX.Element {
+  const { classes } = useStyles();
   const savePathConfig = useCallback(
     (newConfig: Partial<PlotPath>) => {
       const newPaths = paths.slice();
@@ -77,12 +80,12 @@ export default function PathSettingsModal({
 
   return (
     <Dialog open onClose={onDismiss} maxWidth="xs" fullWidth>
-      <StyledDialogTitle>
+      <DialogTitle className={classes.dialogTitle}>
         {path.value}
         <IconButton onClick={onDismiss} edge="end">
           <CloseIcon />
         </IconButton>
-      </StyledDialogTitle>
+      </DialogTitle>
       <DialogContent>
         <Stack alignItems="flex-start" gap={1}>
           <FormControl>
