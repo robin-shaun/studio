@@ -180,7 +180,7 @@ const LAYOUTS = new Map<string, Layout>([
               customBackgroundColor: "#000000",
               diffModeEnabled: true,
               expandedKeys: ["name:Topics"],
-              followMode: "follow",
+              followMode: "follow-pose",
               modifiedNamespaceTopics: [],
               pinTopics: false,
               settingsByKey: {},

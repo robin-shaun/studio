@@ -98,7 +98,7 @@ export type RendererEvents = {
   topicHandlersChanged: (renderer: Renderer) => void;
 };
 
-export type FollowMode = "follow" | "follow-position" | "no-follow";
+export type FollowMode = "follow-pose" | "follow-position" | "follow-none";
 
 export type RendererConfig = {
   /** Camera settings for the currently rendering scene */
@@ -756,7 +756,7 @@ export class Renderer extends EventEmitter<RendererEvents> {
   public setCameraState(cameraState: CameraState): void {
     this._isUpdatingCameraState = true;
     this._updateCameras(cameraState);
-    if (this.followMode === "follow") {
+    if (this.followMode === "follow-pose") {
       this.controls.update();
     }
     this._isUpdatingCameraState = false;
@@ -939,7 +939,12 @@ export class Renderer extends EventEmitter<RendererEvents> {
     const fixedFrame = this.transformTree.frame(fixedFrameId);
 
     // If in stationary or follow-position modes
-    if (this.followMode !== "follow" && this.unfollowPoseSnapshot && renderFrame && fixedFrame) {
+    if (
+      this.followMode !== "follow-pose" &&
+      this.unfollowPoseSnapshot &&
+      renderFrame &&
+      fixedFrame
+    ) {
       const snapshotInRenderFrame = renderFrame.applyLocal(
         makePose(),
         this.unfollowPoseSnapshot,
@@ -1222,7 +1227,7 @@ export class Renderer extends EventEmitter<RendererEvents> {
     }
 
     // Should only occur on reload when the saved followMode is not follow
-    if (this.followMode !== "follow" && !this.unfollowPoseSnapshot) {
+    if (this.followMode !== "follow-pose" && !this.unfollowPoseSnapshot) {
       // Snapshot the current pose of the render frame in the fixed frame
       this.unfollowPoseSnapshot = makePose();
       fixedFrame.applyLocal(

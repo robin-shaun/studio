@@ -78,9 +78,9 @@ export class CoreSettings extends SceneExtension {
     const followTfError = this.renderer.settings.errors.errors.errorAtPath(["general", "followTf"]);
 
     const followModeOptions = [
-      { label: "Follow", value: "follow" },
-      { label: "Follow position", value: "follow-position" },
-      { label: "Stationary", value: "no-follow" },
+      { label: "Pose", value: "follow-pose" },
+      { label: "Position", value: "follow-position" },
+      { label: "None", value: "follow-none" },
     ];
     const followModeValue = this.renderer.followMode;
 
@@ -100,7 +100,7 @@ export class CoreSettings extends SceneExtension {
             },
             followMode: {
               label: "Follow mode",
-              help: "Toggle between keeping the camera stationary relative to the display frame or root frame.",
+              help: "Change the camera behavior during playback to follow the display frame or not.",
               input: "select",
               options: followModeOptions,
               value: followModeValue,
@@ -302,7 +302,7 @@ export class CoreSettings extends SceneExtension {
         this.renderer.updateConfig((draft) => {
           // any follow -> stationary no clear
           // stationary -> any follow clear offset (center on frame)
-          if (draft.followMode === "no-follow") {
+          if (draft.followMode === "follow-none") {
             draft.cameraState.targetOffset = [0, 0, 0];
           }
           draft.followMode = followMode;

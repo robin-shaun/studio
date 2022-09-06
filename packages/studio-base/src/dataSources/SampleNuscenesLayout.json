@@ -64,7 +64,7 @@
         "t:/tf"
       ],
       "expandedKeys": ["name:Topics"],
-      "followMode": "follow",
+      "followMode": "follow-pose",
       "cameraState": {
         "distance": 30,
         "perspective": true,
@@ -144,7 +144,7 @@
       "diffModeEnabled": true,
       "useThemeBackgroundColor": true,
       "customBackgroundColor": "#000000",
-      "followMode": "follow",
+      "followMode": "follow-pose",
       "clickToPublishPoseTopic": "/move_base_simple/goal",
       "clickToPublishPointTopic": "/clicked_point",
       "clickToPublishPoseEstimateTopic": "/initialpose",
