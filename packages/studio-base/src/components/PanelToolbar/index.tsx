@@ -12,8 +12,9 @@
 //   You may not use this file except in compliance with the License.
 
 import FullscreenExitIcon from "@mui/icons-material/FullscreenExit";
-import { styled as muiStyled, Typography } from "@mui/material";
+import { Typography } from "@mui/material";
 import { useContext, useState, useMemo, CSSProperties } from "react";
+import { makeStyles } from "tss-react/mui";
 
 import PanelContext from "@foxglove/studio-base/components/PanelContext";
 import ToolbarIconButton from "@foxglove/studio-base/components/PanelToolbar/ToolbarIconButton";
@@ -33,24 +34,21 @@ type Props = {
   isUnknownPanel?: boolean;
 };
 
-const PanelToolbarRoot = muiStyled("div", {
-  shouldForwardProp: (prop) => prop !== "backgroundColor" && prop !== "enableDrag",
-})<{ backgroundColor?: CSSProperties["backgroundColor"]; enableDrag: boolean }>(
-  ({ theme, backgroundColor, enableDrag }) => ({
-    transition: "transform 80ms ease-in-out, opacity 80ms ease-in-out",
-    cursor: enableDrag ? "grab" : "auto",
+const useStyles = makeStyles()((theme) => ({
+  root: {
+    transition: theme.transitions.create(["transform", "opacity"], { duration: 80 }),
     flex: "0 0 auto",
     alignItems: "center",
     justifyContent: "flex-end",
     padding: theme.spacing(0.25, 0.75),
     display: "flex",
     minHeight: PANEL_TOOLBAR_MIN_HEIGHT,
-    backgroundColor: backgroundColor ?? theme.palette.background.paper,
+    backgroundColor: theme.palette.background.paper,
     width: "100%",
     left: 0,
     zIndex: theme.zIndex.appBar,
-  }),
-);
+  },
+}));
 
 // Panel toolbar should be added to any panel that's part of the
 // react-mosaic layout.  It adds a drag handle, remove/replace controls
@@ -61,6 +59,7 @@ export default React.memo<Props>(function PanelToolbar({
   children,
   isUnknownPanel = false,
 }: Props) {
+  const { classes } = useStyles();
   const { isFullscreen, exitFullscreen } = useContext(PanelContext) ?? {};
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -94,11 +93,14 @@ export default React.memo<Props>(function PanelToolbar({
     isUnknownPanel || children == undefined ? undefined : panelContext?.connectToolbarDragHandle;
 
   return (
-    <PanelToolbarRoot
-      backgroundColor={backgroundColor}
+    <div
+      className={classes.root}
       data-testid="mosaic-drag-handle"
-      enableDrag={rootDragRef != undefined}
       ref={rootDragRef}
+      style={{
+        backgroundColor,
+        cursor: rootDragRef != undefined ? "grab" : "auto",
+      }}
     >
       {children ??
         (panelContext != undefined && (
@@ -113,6 +115,6 @@ export default React.memo<Props>(function PanelToolbar({
         ref={controlsDragRef}
         setMenuOpen={setMenuOpen}
       />
-    </PanelToolbarRoot>
+    </div>
   );
 });
