@@ -66,7 +66,7 @@ const MESSAGE_COLORS: { [key: string]: string } = {
   stale: "text.secondary",
 };
 
-const useStyles = makeStyles<void, "iconButton">()((theme, params, classes) => ({
+const useStyles = makeStyles<void, "iconButton">()((theme, _params, classes) => ({
   iconButton: {
     visibility: "hidden",
 
