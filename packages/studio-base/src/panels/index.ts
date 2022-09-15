@@ -85,6 +85,12 @@ const builtin: PanelInfo[] = [
     module: async () => await import("./diagnostics/DiagnosticSummary"),
   },
   {
+    title: "Hover value",
+    type: "HoverValue",
+    description: "Display hovered values in a table",
+    module: async () => await import("./HoverValue"),
+  },
+  {
     title: "Image",
     type: "ImageViewPanel",
     description: "Display annotated images.",
