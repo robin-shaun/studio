@@ -24,14 +24,24 @@ module.exports = {
   rules: {
     "@foxglove/license-header": "error",
     "tss-unused-classes/unused-classes": "error",
+
+    // show progress while linting
     "file-progress/activate": "warn",
+
+    // enabled in .eslintrc.ci.yaml
     "prettier/prettier": "off",
     "import/no-self-import": "off",
     "import/no-duplicates": "off",
-    "id-denylist": ["error", "useEffectOnce", "window"],
-    "no-console": "off",
+
+    "id-denylist": [
+      "error",
+      "useEffectOnce",
+      "window", // # don't allow redefining window
+    ],
+    "no-console": "off", // configured in no-restricted-syntax
+
     "react/jsx-uses-react": "off",
-    "react/prop-types": "off",
+    "react/prop-types": "off", // Unnecessary with typescript validation
     "react-hooks/exhaustive-deps": [
       "error",
       {
@@ -39,6 +49,9 @@ module.exports = {
       },
     ],
     "react/jsx-curly-brace-presence": ["error", "never"],
+
+    // The _sx_ property is slow
+    // https://stackoverflow.com/questions/68383046/is-there-a-performance-difference-between-the-sx-prop-and-the-makestyles-function
     "react/forbid-component-props": [
       "error",
       {
@@ -51,6 +64,7 @@ module.exports = {
         ],
       },
     ],
+
     "no-warning-comments": [
       "error",
       {
@@ -113,11 +127,14 @@ module.exports = {
         selector: "MethodDefinition[kind='set'], Property[kind='set']",
         message: "Property setters are not allowed; prefer function syntax instead.",
       },
+
+      // We disable console methods here rather than using no-console so that it doesn't prohibit overrides such as "console.info = ..."
       {
         selector:
           "CallExpression[callee.object.name='console'][callee.property.name!=/^(warn|error|debug|assert)$/]",
         message: "Unexpected property on console object was called",
       },
+
       {
         selector: "TSNullKeyword, Literal[raw=null]",
         message:
@@ -147,16 +164,22 @@ module.exports = {
           },
         ],
         "@typescript-eslint/explicit-member-accessibility": "error",
-        "@typescript-eslint/no-inferrable-types": "off",
+        "@typescript-eslint/no-inferrable-types": "off", // It's sometimes useful to explicitly name to guard against future changes
         "@typescript-eslint/no-empty-function": "off",
-        "@typescript-eslint/no-implied-eval": "off",
+        "@typescript-eslint/no-implied-eval": "off", // We need to use `new Function()`
+
+        // These are related to `any` types, which we generally don't have except from imports
         "@typescript-eslint/no-unsafe-member-access": "off",
         "@typescript-eslint/no-unsafe-return": "off",
         "@typescript-eslint/no-unsafe-assignment": "off",
         "@typescript-eslint/no-unsafe-call": "off",
-        "@typescript-eslint/require-await": "off",
-        "@typescript-eslint/no-misused-promises": "off",
+
+        "@typescript-eslint/require-await": "off", // Async functions without await are used to satisfy interface requirements
+
+        // These could theoretically be turned on (or merit investigation) but are currently noisy
+        "@typescript-eslint/no-misused-promises": "off", // Often used with e.g. useCallback(async () => {})
         "@typescript-eslint/restrict-template-expressions": "off",
+
         "@typescript-eslint/prefer-regexp-exec": "off",
         "@typescript-eslint/no-unnecessary-condition": "error",
         "@typescript-eslint/unbound-method": [
@@ -178,6 +201,7 @@ module.exports = {
         "tss-unused-classes/unused-classes": "off",
       },
       files: [
+        // Using @fluentui/makeStyles expecting deletion soon
         "packages/studio-base/src/components/Menu/Item.tsx",
         "packages/studio-base/src/components/Menu/Menu.tsx",
       ],
@@ -187,6 +211,7 @@ module.exports = {
         "no-restricted-imports": "off",
       },
       files: [
+        // Ignore existing implementations of fluentui, styled-components, and @mui/styled
         "web/src/VersionBanner.tsx",
         "packages/studio-base/src/components/Autocomplete.tsx",
         "packages/studio-base/src/components/ChildToggle/index.tsx",
