@@ -11,6 +11,7 @@ import { ExtensionContext, ExtensionModule } from "@foxglove/studio";
 import {
   ExtensionCatalog,
   ExtensionCatalogContext,
+  RegisteredDataHandler,
   RegisteredPanel,
   useExtensionCatalog,
 } from "@foxglove/studio-base/context/ExtensionCatalogContext";
@@ -19,10 +20,18 @@ import { ExtensionInfo, ExtensionNamespace } from "@foxglove/studio-base/types/E
 
 const log = Logger.getLogger(__filename);
 
-async function registerExtensionPanels(
+type ExtensionRegistrations = {
+  dataHandlers: Record<string, RegisteredDataHandler>;
+  panels: Record<string, RegisteredPanel>;
+};
+
+async function registerExtensions(
   extensions: ExtensionInfo[],
   loadExtension: ExtensionLoader["loadExtension"],
-): Promise<Record<string, RegisteredPanel>> {
+): Promise<ExtensionRegistrations> {
+  // registered data handlers stored by their fully qualified id
+  // the fully qualified id is the extension name + data handler name
+  const dataHandlers: Record<string, RegisteredDataHandler> = {};
   // registered panels stored by their fully qualified id
   // the fully qualified id is the extension name + panel name
   const panels: Record<string, RegisteredPanel> = {};
@@ -44,6 +53,22 @@ async function registerExtensionPanels(
 
     const ctx: ExtensionContext = {
       mode: extensionMode,
+
+      registerDataHandler(params) {
+        log.debug(`Extension ${extension.qualifiedName} registering data handler: ${params.name}`);
+
+        const fullId = `${extension.qualifiedName}.${params.name}`;
+        if (dataHandlers[fullId]) {
+          log.warn(`Data handler ${fullId} is already registered`);
+          return;
+        }
+
+        dataHandlers[fullId] = {
+          extensionName: extension.qualifiedName,
+          extensionNamespace: extension.namespace,
+          registration: params,
+        };
+      },
 
       registerPanel(params) {
         log.debug(`Extension ${extension.qualifiedName} registering panel: ${params.name}`);
@@ -78,7 +103,7 @@ async function registerExtensionPanels(
     }
   }
 
-  return panels;
+  return { dataHandlers, panels };
 }
 
 export function createExtensionRegistryStore(
@@ -119,15 +144,19 @@ export function createExtensionRegistryStore(
         .flat()
         .sort();
       log.debug(`Found ${extensionList.length} extension(s)`);
-      const panels = await registerExtensionPanels(
+      const { dataHandlers, panels } = await registerExtensions(
         extensionList,
         async (id: string) => await get().loadExtension(id),
       );
-      set({ installedExtensions: extensionList, installedPanels: panels });
+      set({
+        installedExtensions: extensionList,
+        installedDataHandlers: dataHandlers,
+        installedPanels: panels,
+      });
     },
 
     installedExtensions: undefined,
-
+    installedDataHandlers: undefined,
     installedPanels: undefined,
 
     uninstallExtension: async (namespace: ExtensionNamespace, id: string) => {

@@ -128,7 +128,7 @@ declare module "@foxglove/studio" {
     }): void;
   }
 
-  export interface RenderState {
+  export interface DataSourceState {
     /**
      * The latest messages for the current render frame. These are new messages since the last render frame.
      */
@@ -180,24 +180,16 @@ declare module "@foxglove/studio" {
      */
     previewTime?: number | undefined;
 
-    /** The color scheme currently in use throughout the app. */
-    colorScheme?: "dark" | "light";
-
     /** Application settings. This will only contain subscribed application setting key/values */
     appSettings?: ReadonlyMap<string, AppSettingValue>;
   }
 
-  export type PanelExtensionContext = {
-    /**
-     * The root element for the panel. Add your panel elements as children under this element.
-     */
-    readonly panelElement: HTMLDivElement;
+  export interface RenderState extends DataSourceState {
+    /** The color scheme currently in use throughout the app. */
+    colorScheme?: "dark" | "light";
+  }
 
-    /**
-     * Initial panel state
-     */
-    readonly initialState: unknown;
-
+  export type DataExtensionContext = {
     /** Actions the panel may perform related to the user's current layout. */
     readonly layout: LayoutActions;
 
@@ -210,18 +202,10 @@ declare module "@foxglove/studio" {
     readonly dataSourceProfile?: string;
 
     /**
-     * Subscribe to updates on this field within the render state. Render will only be invoked when
-     * this field changes.
+     * Subscribe to updates on this field within the data source state. onData will only be invoked
+     * when a watched field changes.
      */
-    watch: (field: keyof RenderState) => void;
-
-    /**
-     * Save arbitrary object as persisted panel state. This state is persisted for the panel
-     * within a layout.
-     *
-     * The state value should be JSON serializable.
-     */
-    saveState: (state: Partial<unknown>) => void;
+    watch: (field: keyof DataSourceState) => void;
 
     /**
      * Set the value of parameter name to value.
@@ -306,6 +290,41 @@ declare module "@foxglove/studio" {
     callService?(service: string, request: unknown): Promise<unknown>;
 
     /**
+     * Process data events for the panel. Each data event receives a data source state and a done
+     * callback. Data source events occur frequently (60hz, 30hz, etc).
+     *
+     * The done callback should be called once the data handler has finished processing of the
+     * DataSourceState and triggered any resulting actions such as message publishing.
+     */
+    onData?: (dataSourceState: Readonly<DataSourceState>, done: () => void) => void;
+  };
+
+  export type PanelExtensionContext = DataExtensionContext & {
+    /**
+     * The root element for the panel. Add your panel elements as children under this element.
+     */
+    readonly panelElement: HTMLDivElement;
+
+    /**
+     * Initial panel state
+     */
+    readonly initialState: unknown;
+
+    /**
+     * Subscribe to updates on this field within the render state. Render will only be invoked when
+     * a watched field changes.
+     */
+    watch: (field: keyof RenderState) => void;
+
+    /**
+     * Save arbitrary object as persisted panel state. This state is persisted for the panel
+     * within a layout.
+     *
+     * The state value should be JSON serializable.
+     */
+    saveState: (state: Partial<unknown>) => void;
+
+    /**
      * Process render events for the panel. Each render event receives a render state and a done callback.
      * Render events occur frequently (60hz, 30hz, etc).
      *
@@ -320,15 +339,25 @@ declare module "@foxglove/studio" {
     updatePanelSettingsEditor(settings: Readonly<SettingsTree>): void;
   };
 
-  export type ExtensionPanelRegistration = {
-    // Unique name of the panel within your extension
-    //
-    // NOTE: Panel names within your extension must be unique. The panel name identifies this panel
-    // within a layout. Changing the panel name will cause layouts using the old name unable to load
-    // your panel.
+  export type ExtensionDataHandlerRegistration = {
+    /** Unique name of the data handler within your extension. */
     name: string;
 
-    // This function is invoked when your panel is initialized
+    /** This function is invoked when your data handler is initialized. */
+    initDataHandler: (context: DataExtensionContext) => void;
+  };
+
+  export type ExtensionPanelRegistration = {
+    /**
+     * Unique name of the panel within your extension.
+     *
+     * NOTE: Panel names within your extension must be unique. The panel name identifies this panel
+     * within a layout. Changing the panel name will cause layouts using the old name unable to load
+     * your panel.
+     */
+    name: string;
+
+    /** This function is invoked when your panel is initialized. */
     initPanel: (context: PanelExtensionContext) => void;
   };
 
@@ -336,7 +365,19 @@ declare module "@foxglove/studio" {
     /** The current _mode_ of the application. */
     readonly mode: "production" | "development" | "test";
 
-    registerPanel(params: ExtensionPanelRegistration): void;
+    /**
+     * Register a custom data handler provided by the extension. Data handlers can subscribe to
+     * topics, advertise topics and publish messages, read and write variables and parameters, and
+     * other tasks in Studio but do not create a panel or render to the screen.
+     */
+    registerDataHandler(dataHandler: ExtensionDataRegistration): void;
+
+    /**
+     * Register a custom panel provided by the extension. Panels inherit all of the functionality of
+     * data handlers, plus a rectangular DOM node that appears in Studio and can be moved and
+     * resized by the user.
+     */
+    registerPanel(panel: ExtensionPanelRegistration): void;
   }
 
   export interface ExtensionActivate {

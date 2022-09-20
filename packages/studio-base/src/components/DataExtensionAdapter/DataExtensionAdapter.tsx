@@ -2,10 +2,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { useTheme } from "@mui/material";
-import { isEqual } from "lodash";
-import { CSSProperties, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useUpdateEffect } from "react-use";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { v4 as uuid } from "uuid";
 
 import { useValueChangedDebugLog } from "@foxglove/hooks";
@@ -13,21 +10,20 @@ import Logger from "@foxglove/log";
 import { fromSec, toSec } from "@foxglove/rostime";
 import {
   AppSettingValue,
-  ExtensionPanelRegistration,
-  PanelExtensionContext,
+  DataExtensionContext,
+  DataSourceState,
+  ExtensionDataHandlerRegistration,
   ParameterValue,
-  RenderState,
-  SettingsTree,
   Subscription,
   VariableValue,
 } from "@foxglove/studio";
+import { initDataSourceStateBuilder } from "@foxglove/studio-base/components/DataExtensionAdapter/dataSourceState";
 import {
   MessagePipelineContext,
   useMessagePipeline,
   useMessagePipelineGetter,
 } from "@foxglove/studio-base/components/MessagePipeline";
 import { usePanelContext } from "@foxglove/studio-base/components/PanelContext";
-import PanelToolbar from "@foxglove/studio-base/components/PanelToolbar";
 import { useAppConfiguration } from "@foxglove/studio-base/context/AppConfigurationContext";
 import {
   useClearHoverValue,
@@ -40,45 +36,29 @@ import {
   PlayerCapabilities,
   SubscribePayload,
 } from "@foxglove/studio-base/players/types";
-import { usePanelSettingsTreeUpdate } from "@foxglove/studio-base/providers/PanelSettingsEditorContextProvider";
-import { PanelConfig, SaveConfig } from "@foxglove/studio-base/types/panels";
+import { PanelConfig } from "@foxglove/studio-base/types/panels";
 import { assertNever } from "@foxglove/studio-base/util/assertNever";
-
-import { initRenderStateBuilder } from "./renderState";
 
 const log = Logger.getLogger(__filename);
 
-type PanelExtensionAdapterProps = {
-  /** function that initializes the panel extension */
-  initPanel: ExtensionPanelRegistration["initPanel"];
-
-  config: unknown;
-  saveConfig: SaveConfig<unknown>;
-
-  /** Help document for the panel */
-  help?: string;
+type DataExtensionAdapterProps = {
+  /** function that initializes the extension data handler */
+  initDataHandler: ExtensionDataHandlerRegistration["initDataHandler"];
 };
 
 function selectContext(ctx: MessagePipelineContext) {
   return ctx;
 }
 
-type RenderFn = NonNullable<PanelExtensionContext["onRender"]>;
-/**
- * PanelExtensionAdapter renders a panel extension via initPanel
- *
- * The adapter creates a PanelExtensionContext and invokes initPanel using the context.
- */
-function PanelExtensionAdapter(props: PanelExtensionAdapterProps): JSX.Element {
-  const { initPanel, config, saveConfig } = props;
+type HandlerFn = NonNullable<DataExtensionContext["onData"]>;
 
-  // Unlike the react data flow, the config is only provided to the panel once on setup.
-  // The panel is meant to manage the config and call saveConfig on its own.
-  //
-  // We store the config in a ref to avoid re-initializing the panel when the react config
-  // changes. The initialState is updated in an effect below so that if the panel does re-initialize
-  // it does so with the latest config.
-  const initialState = useRef(config);
+/**
+ * DataExtensionAdapter executes a data extension via initExtension.
+ *
+ * The adapter creates a DataExtensionContext and invokes initExtension using the context.
+ */
+function DataExtensionAdapter(props: DataExtensionAdapterProps): JSX.Element {
+  const { initDataHandler } = props;
 
   const messagePipelineContext = useMessagePipeline(selectContext);
 
@@ -89,34 +69,33 @@ function PanelExtensionAdapter(props: PanelExtensionAdapterProps): JSX.Element {
 
   const { openSiblingPanel } = usePanelContext();
 
-  const [panelId, setPanelId] = useState(() => uuid());
-  const latestPanelId = useRef<string | undefined>(panelId);
+  const [instanceId] = useState(() => uuid());
+
+  const latestInstanceId = useRef<string | undefined>(instanceId);
   useLayoutEffect(() => {
-    latestPanelId.current = panelId;
+    latestInstanceId.current = instanceId;
     return () => {
-      latestPanelId.current = undefined;
+      latestInstanceId.current = undefined;
     };
-  }, [panelId]);
+  }, [instanceId]);
 
   const [error, setError] = useState<Error | undefined>();
-  const [watchedFields, setWatchedFields] = useState(new Set<keyof RenderState>());
+  const [watchedFields, setWatchedFields] = useState(new Set<keyof DataSourceState>());
 
   // When subscribing to preloaded topics we use this array to filter the raw blocks to include only
-  // the topics we subscribed to in the allFrames render state. Otherwise the panel would receive
-  // messages in allFrames for topics the panel did not subscribe to.
+  // the topics we subscribed to in the allFrames state. Otherwise the handler would receive
+  // messages in allFrames for topics it did not subscribe to
   const [subscribedTopics, setSubscribedTopics] = useState<string[]>([]);
 
   const [appSettings, setAppSettings] = useState(new Map<string, AppSettingValue>());
   const [subscribedAppSettings, setSubscribedAppSettings] = useState<string[]>([]);
 
-  const [renderFn, setRenderFn] = useState<RenderFn | undefined>();
-
-  const [slowRender, setSlowRender] = useState(false);
+  const [handlerFn, setHandlerFn] = useState<HandlerFn | undefined>();
 
   const { globalVariables, setGlobalVariables } = useGlobalVariables();
 
   const hoverValue = useHoverValue({
-    componentId: `PanelExtensionAdapter:${panelId}`,
+    componentId: `DataExtensionAdapter:${instanceId}`,
     isTimestampScale: true,
   });
   const setHoverValue = useSetHoverValue();
@@ -125,10 +104,6 @@ function PanelExtensionAdapter(props: PanelExtensionAdapterProps): JSX.Element {
   // track the advertisements requested by the panel context
   // topic -> advertisement
   const advertisementsRef = useRef(new Map<string, AdvertiseOptions>());
-
-  const {
-    palette: { mode: colorScheme },
-  } = useTheme();
 
   const appConfiguration = useAppConfiguration();
 
@@ -139,18 +114,11 @@ function PanelExtensionAdapter(props: PanelExtensionAdapterProps): JSX.Element {
   // This getter allows the extension context to remain stable through pipeline changes
   const getMessagePipelineContext = useMessagePipelineGetter();
 
-  // initRenderStateBuilder render produces a function which computes the latest render state from a set of inputs
+  // initDataSourceStateBuilder produces a function which computes the latest state from a set of inputs
   // Spiritually its like a reducer
-  const [buildRenderState, setBuildRenderState] = useState(() => initRenderStateBuilder());
-
-  // Keep the initialState updated and reset the panel if the config is cleared
-  // This happens when a panel crashes and the user wants to "reset" it
-  useUpdateEffect(() => {
-    initialState.current = config;
-    if (isEqual(config, {})) {
-      setPanelId(() => uuid());
-    }
-  }, [config]);
+  const [buildDataSourceState, setBuildDataSourceState] = useState(() =>
+    initDataSourceStateBuilder(),
+  );
 
   // Register handlers to update the app settings we subscribe to
   useEffect(() => {
@@ -182,66 +150,58 @@ function PanelExtensionAdapter(props: PanelExtensionAdapterProps): JSX.Element {
   }, [appConfiguration, subscribedAppSettings]);
 
   const messageEvents = useMemo(
-    () => messagePipelineContext.messageEventsBySubscriberId.get(panelId),
-    [messagePipelineContext.messageEventsBySubscriberId, panelId],
+    () => messagePipelineContext.messageEventsBySubscriberId.get(instanceId),
+    [messagePipelineContext.messageEventsBySubscriberId, instanceId],
   );
 
-  // The rendering ref is set when we've begin rendering the frame (calling the panel's render
-  // function)
-  //
-  // If another update arrives before the panel finishes rendering, we will update the
-  // slowRenderState to indicate that the panel could not keep up with rendering relative to
-  // updates.
-  const renderingRef = useRef<boolean>(false);
+  // The handling ref is set when we call the onData handler
+  const handlingRef = useRef<boolean>(false);
   useLayoutEffect(() => {
-    if (!renderFn) {
+    if (!handlerFn) {
       return;
     }
 
-    const renderState = buildRenderState({
+    const dataSourceState = buildDataSourceState({
       watchedFields,
       globalVariables,
       hoverValue,
       playerState,
-      colorScheme,
       appSettings,
       subscribedTopics,
       currentFrame: messageEvents,
       sortedTopics,
     });
 
-    if (!renderState) {
+    if (!dataSourceState) {
       return;
     }
 
-    if (renderingRef.current) {
-      setSlowRender(true);
+    if (handlingRef.current) {
       return;
     }
 
-    setSlowRender(false);
-    const resumeFrame = pauseFrame(panelId);
+    const resumeFrame = pauseFrame(instanceId);
 
-    // tell the panel to render and lockout future renders until rendering is complete
-    renderingRef.current = true;
+    // run the handler and lockout future handler calls until done is called
+    handlingRef.current = true;
     try {
       setError(undefined);
       let doneCalled = false;
-      renderFn(renderState, () => {
+      handlerFn(dataSourceState, () => {
         // ignore any additional done calls from the panel
         if (doneCalled) {
-          log.warn(`${panelId} called render done function twice`);
+          log.warn(`${instanceId} called onData done function multiple times`);
           return;
         }
         doneCalled = true;
         resumeFrame();
-        renderingRef.current = false;
+        handlingRef.current = false;
       });
     } catch (err) {
       setError(err);
     }
   }, [
-    panelId,
+    instanceId,
     pauseFrame,
     subscribedTopics,
     watchedFields,
@@ -249,20 +209,16 @@ function PanelExtensionAdapter(props: PanelExtensionAdapterProps): JSX.Element {
     hoverValue,
     playerState,
     messageEvents,
-    renderFn,
-    colorScheme,
-    buildRenderState,
+    handlerFn,
+    buildDataSourceState,
     globalVariables,
     sortedTopics,
   ]);
 
-  const updatePanelSettingsTree = usePanelSettingsTreeUpdate();
-
-  type PartialPanelExtensionContext = Omit<PanelExtensionContext, "panelElement">;
-  const partialExtensionContext = useMemo<PartialPanelExtensionContext>(() => {
-    const layout: PanelExtensionContext["layout"] = {
+  const dataExtensionContext = useMemo<DataExtensionContext>(() => {
+    const layout: DataExtensionContext["layout"] = {
       addPanel({ position, type, updateIfExists, getState }) {
-        if (panelId !== latestPanelId.current) {
+        if (instanceId !== latestInstanceId.current) {
           return;
         }
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
@@ -279,20 +235,11 @@ function PanelExtensionAdapter(props: PanelExtensionAdapterProps): JSX.Element {
     };
 
     return {
-      initialState: initialState.current,
-
-      saveState: (state) => {
-        if (panelId !== latestPanelId.current) {
-          return;
-        }
-        saveConfig(state);
-      },
-
       layout,
 
       seekPlayback: seekPlayback
         ? (stamp: number) => {
-            if (panelId !== latestPanelId.current) {
+            if (instanceId !== latestInstanceId.current) {
               return;
             }
             seekPlayback(fromSec(stamp));
@@ -302,21 +249,21 @@ function PanelExtensionAdapter(props: PanelExtensionAdapterProps): JSX.Element {
       dataSourceProfile,
 
       setParameter: (name: string, value: ParameterValue) => {
-        if (panelId !== latestPanelId.current) {
+        if (instanceId !== latestInstanceId.current) {
           return;
         }
         getMessagePipelineContext().setParameter(name, value);
       },
 
       setVariable: (name: string, value: VariableValue) => {
-        if (panelId !== latestPanelId.current) {
+        if (instanceId !== latestInstanceId.current) {
           return;
         }
         setGlobalVariables({ [name]: value });
       },
 
       setPreviewTime: (stamp: number | undefined) => {
-        if (panelId !== latestPanelId.current) {
+        if (instanceId !== latestInstanceId.current) {
           return;
         }
         if (stamp == undefined) {
@@ -338,8 +285,8 @@ function PanelExtensionAdapter(props: PanelExtensionAdapterProps): JSX.Element {
         }
       },
 
-      watch: (field: keyof RenderState) => {
-        if (panelId !== latestPanelId.current) {
+      watch: (field: keyof DataSourceState) => {
+        if (instanceId !== latestInstanceId.current) {
           return;
         }
         setWatchedFields((old) => {
@@ -349,7 +296,7 @@ function PanelExtensionAdapter(props: PanelExtensionAdapterProps): JSX.Element {
       },
 
       subscribe: (topics: ReadonlyArray<string | Subscription>) => {
-        if (panelId !== latestPanelId.current) {
+        if (instanceId !== latestInstanceId.current) {
           return;
         }
         const newSubscribedTopics: string[] = [];
@@ -369,12 +316,12 @@ function PanelExtensionAdapter(props: PanelExtensionAdapterProps): JSX.Element {
         });
 
         setSubscribedTopics(newSubscribedTopics);
-        setSubscriptions(panelId, subscribePayloads);
+        setSubscriptions(instanceId, subscribePayloads);
       },
 
       advertise: capabilities.includes(PlayerCapabilities.advertise)
         ? (topic: string, datatype: string, options) => {
-            if (panelId !== latestPanelId.current) {
+            if (instanceId !== latestInstanceId.current) {
               return;
             }
             const payload: AdvertiseOptions = {
@@ -385,7 +332,7 @@ function PanelExtensionAdapter(props: PanelExtensionAdapterProps): JSX.Element {
             advertisementsRef.current.set(topic, payload);
 
             getMessagePipelineContext().setPublishers(
-              panelId,
+              instanceId,
               Array.from(advertisementsRef.current.values()),
             );
           }
@@ -393,12 +340,12 @@ function PanelExtensionAdapter(props: PanelExtensionAdapterProps): JSX.Element {
 
       unadvertise: capabilities.includes(PlayerCapabilities.advertise)
         ? (topic: string) => {
-            if (panelId !== latestPanelId.current) {
+            if (instanceId !== latestInstanceId.current) {
               return;
             }
             advertisementsRef.current.delete(topic);
             getMessagePipelineContext().setPublishers(
-              panelId,
+              instanceId,
               Array.from(advertisementsRef.current.values()),
             );
           }
@@ -406,7 +353,7 @@ function PanelExtensionAdapter(props: PanelExtensionAdapterProps): JSX.Element {
 
       publish: capabilities.includes(PlayerCapabilities.advertise)
         ? (topic, message) => {
-            if (panelId !== latestPanelId.current) {
+            if (instanceId !== latestInstanceId.current) {
               return;
             }
             getMessagePipelineContext().publish({
@@ -418,7 +365,7 @@ function PanelExtensionAdapter(props: PanelExtensionAdapterProps): JSX.Element {
 
       callService: capabilities.includes(PlayerCapabilities.callServices)
         ? async (service, request): Promise<unknown> => {
-            if (panelId !== latestPanelId.current) {
+            if (instanceId !== latestInstanceId.current) {
               throw new Error("Service call after panel was unmounted");
             }
             return await getMessagePipelineContext().callService(service, request);
@@ -426,25 +373,18 @@ function PanelExtensionAdapter(props: PanelExtensionAdapterProps): JSX.Element {
         : undefined,
 
       unsubscribeAll: () => {
-        if (panelId !== latestPanelId.current) {
+        if (instanceId !== latestInstanceId.current) {
           return;
         }
         setSubscribedTopics([]);
-        setSubscriptions(panelId, []);
+        setSubscriptions(instanceId, []);
       },
 
       subscribeAppSettings: (settings: string[]) => {
-        if (panelId !== latestPanelId.current) {
+        if (instanceId !== latestInstanceId.current) {
           return;
         }
         setSubscribedAppSettings(settings);
-      },
-
-      updatePanelSettingsEditor: (settings: SettingsTree) => {
-        if (panelId !== latestPanelId.current) {
-          return;
-        }
-        updatePanelSettingsTree(settings);
       },
     };
   }, [
@@ -452,88 +392,49 @@ function PanelExtensionAdapter(props: PanelExtensionAdapterProps): JSX.Element {
     clearHoverValue,
     dataSourceProfile,
     getMessagePipelineContext,
-    latestPanelId,
+    latestInstanceId,
     openSiblingPanel,
-    panelId,
-    saveConfig,
+    instanceId,
     seekPlayback,
     setGlobalVariables,
     setHoverValue,
     setSubscriptions,
-    updatePanelSettingsTree,
   ]);
 
-  const panelContainerRef = useRef<HTMLDivElement>(ReactNull);
+  useValueChangedDebugLog(initDataHandler, "initDataHandler");
+  useValueChangedDebugLog(instanceId, "instanceId");
+  useValueChangedDebugLog(dataExtensionContext, "dataExtensionContext");
 
-  useValueChangedDebugLog(initPanel, "initPanel");
-  useValueChangedDebugLog(panelId, "panelId");
-  useValueChangedDebugLog(partialExtensionContext, "partialExtensionContext");
-
-  // Manage extension lifecycle by calling initPanel() when the panel context changes.
+  // Manage extension lifecycle by calling initDataHandler() when the data handler context changes.
   //
-  // If we useEffect here instead of useLayoutEffect, the prevRenderState can get polluted with data
-  // from a previous panel instance.
+  // If we useEffect here instead of useLayoutEffect, the prevDataSourceState can get polluted with
+  // data from a previous instance.
   useLayoutEffect(() => {
-    if (!panelContainerRef.current) {
-      throw new Error("Expected panel container to be mounted");
-    }
-
     // Reset local state when the panel element is mounted or changes
-    setRenderFn(undefined);
-    setBuildRenderState(() => initRenderStateBuilder());
+    setHandlerFn(undefined);
+    setBuildDataSourceState(() => initDataSourceStateBuilder());
 
-    const panelElement = document.createElement("div");
-    panelElement.style.width = "100%";
-    panelElement.style.height = "100%";
-    panelElement.style.overflow = "hidden";
-    panelContainerRef.current.appendChild(panelElement);
-
-    log.info(`Init panel ${panelId}`);
-    initPanel({
-      panelElement,
-      ...partialExtensionContext,
+    log.info(`Init extension data handler ${instanceId}`);
+    initDataHandler({
+      ...dataExtensionContext,
 
       // eslint-disable-next-line no-restricted-syntax
-      set onRender(renderFunction: RenderFn | undefined) {
-        setRenderFn(() => renderFunction);
+      set onData(handlerFunction: HandlerFn | undefined) {
+        setHandlerFn(() => handlerFunction);
       },
     });
 
     return () => {
-      panelElement.remove();
-      getMessagePipelineContext().setSubscriptions(panelId, []);
-      getMessagePipelineContext().setPublishers(panelId, []);
+      getMessagePipelineContext().setSubscriptions(instanceId, []);
+      getMessagePipelineContext().setPublishers(instanceId, []);
     };
-  }, [initPanel, panelId, partialExtensionContext, getMessagePipelineContext]);
-
-  const style: CSSProperties = {};
-  if (slowRender) {
-    style.borderColor = "orange";
-    style.borderWidth = "1px";
-    style.borderStyle = "solid";
-  }
+  }, [initDataHandler, instanceId, dataExtensionContext, getMessagePipelineContext]);
 
   if (error) {
     throw error;
   }
 
-  return (
-    <div
-      style={{
-        alignItems: "stretch",
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-        overflow: "hidden",
-        width: "100%",
-        zIndex: 0,
-        ...style,
-      }}
-    >
-      <PanelToolbar helpContent={props.help} />
-      <div style={{ flex: 1, overflow: "hidden" }} ref={panelContainerRef} />
-    </div>
-  );
+  return <></>;
 }
 
-export default PanelExtensionAdapter;
+export default DataExtensionAdapter;

@@ -5,9 +5,15 @@
 import { createContext } from "react";
 import { StoreApi, useStore } from "zustand";
 
-import { ExtensionPanelRegistration } from "@foxglove/studio";
+import { ExtensionDataHandlerRegistration, ExtensionPanelRegistration } from "@foxglove/studio";
 import useGuaranteedContext from "@foxglove/studio-base/hooks/useGuaranteedContext";
 import { ExtensionInfo, ExtensionNamespace } from "@foxglove/studio-base/types/Extensions";
+
+export type RegisteredDataHandler = {
+  extensionName: string;
+  extensionNamespace?: ExtensionNamespace;
+  registration: ExtensionDataHandlerRegistration;
+};
 
 export type RegisteredPanel = {
   extensionName: string;
@@ -26,6 +32,7 @@ export type ExtensionCatalog = {
   uninstallExtension: (namespace: ExtensionNamespace, id: string) => Promise<void>;
 
   installedExtensions: undefined | ExtensionInfo[];
+  installedDataHandlers: undefined | Record<string, RegisteredDataHandler>;
   installedPanels: undefined | Record<string, RegisteredPanel>;
 };
 
