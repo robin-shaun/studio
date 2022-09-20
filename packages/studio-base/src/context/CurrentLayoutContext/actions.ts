@@ -14,7 +14,7 @@ import { MosaicNode, MosaicPath } from "react-mosaic-component";
 
 import { VariableValue } from "@foxglove/studio";
 import { GlobalVariables } from "@foxglove/studio-base/hooks/useGlobalVariables";
-import { LinkedGlobalVariables } from "@foxglove/studio-base/panels/ThreeDimensionalViz/Interactions/useLinkedGlobalVariables";
+import { LinkedGlobalVariables } from "@foxglove/studio-base/hooks/useLinkedGlobalVariables";
 import { TabLocation } from "@foxglove/studio-base/types/layouts";
 import {
   UserNodes,

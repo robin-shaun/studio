@@ -42,7 +42,7 @@ import {
   useUserNodeState,
 } from "@foxglove/studio-base/context/UserNodeStateContext";
 import { GlobalVariables } from "@foxglove/studio-base/hooks/useGlobalVariables";
-import { LinkedGlobalVariables } from "@foxglove/studio-base/panels/ThreeDimensionalViz/Interactions/useLinkedGlobalVariables";
+import { LinkedGlobalVariables } from "@foxglove/studio-base/hooks/useLinkedGlobalVariables";
 import { Diagnostic, UserNodeLog } from "@foxglove/studio-base/players/UserNodePlayer/types";
 import {
   Topic,

@@ -29,7 +29,7 @@ import Stack from "@foxglove/studio-base/components/Stack";
 import useGlobalVariables, {
   GlobalVariables,
 } from "@foxglove/studio-base/hooks/useGlobalVariables";
-import useLinkedGlobalVariables from "@foxglove/studio-base/panels/ThreeDimensionalViz/Interactions/useLinkedGlobalVariables";
+import useLinkedGlobalVariables from "@foxglove/studio-base/hooks/useLinkedGlobalVariables";
 
 const useStyles = makeStyles<void, "copyButton">()((theme, _params, classes) => ({
   root: {

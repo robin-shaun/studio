@@ -34,7 +34,7 @@ import {
 } from "@foxglove/studio-base/context/CurrentLayoutContext/actions";
 import { useLayoutManager } from "@foxglove/studio-base/context/LayoutManagerContext";
 import { useUserProfileStorage } from "@foxglove/studio-base/context/UserProfileStorageContext";
-import { LinkedGlobalVariables } from "@foxglove/studio-base/panels/ThreeDimensionalViz/Interactions/useLinkedGlobalVariables";
+import { LinkedGlobalVariables } from "@foxglove/studio-base/hooks/useLinkedGlobalVariables";
 import { defaultLayout } from "@foxglove/studio-base/providers/CurrentLayoutProvider/defaultLayout";
 import panelsReducer from "@foxglove/studio-base/providers/CurrentLayoutProvider/reducers";
 import { LayoutID } from "@foxglove/studio-base/services/ConsoleApi";
