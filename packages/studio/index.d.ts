@@ -497,6 +497,11 @@ declare module "@foxglove/studio" {
      * Optional message indicating any error state for the field.
      */
     error?: string;
+
+    /**
+     * True if the clear button should be hidden.
+     */
+    shouldHideClearButton?: boolean;
   };
 
   export type SettingsTreeFields = Record<string, undefined | SettingsTreeField>;
