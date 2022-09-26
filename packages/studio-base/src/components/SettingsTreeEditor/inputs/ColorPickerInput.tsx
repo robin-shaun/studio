@@ -93,6 +93,7 @@ export function ColorPickerInput(props: ColorPickerInputProps): JSX.Element {
             <IconButton
               onClick={clearValue}
               size="small"
+              disabled={disabled}
               style={{ visibility: shouldHideClearButton ? "hidden" : "visible" }}
             >
               <ClearIcon />
