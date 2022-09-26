@@ -632,7 +632,14 @@ const ColorSettings: SettingsTreeNodes = {
     fields: {
       undefined: { label: "Undefined", input: "rgb", value: undefined, placeholder: "placeholder" },
       invalid: { label: "Invalid", input: "rgb", value: "invalid" },
+      hiddenClearButton: {
+        label: "Hidden Clear Button",
+        input: "rgb",
+        value: "#00ffbf",
+        shouldHideClearButton: true,
+      },
       hex6: { label: "Hex 6", input: "rgb", value: "#ffaa00" },
+      hex7: { label: "Hex 6", input: "rgb", value: "#ffaa00" },
       hex8: { label: "Hex 8", input: "rgb", value: "#00aaff88" },
       rgb: { label: "RGB", input: "rgb", value: "rgb(255, 128, 0)" },
       rgba: { label: "RGBA", input: "rgba", value: "rgba(255, 0, 0, 0.5)" },
@@ -642,22 +649,6 @@ const ColorSettings: SettingsTreeNodes = {
     },
   },
 };
-
-// const EmptyValueSettings: SettingsTreeNodes = {
-//   EmptyValue: {
-//     fields: {
-//       undefined: { label: "Undefined", input: "rgb", value: undefined, placeholder: "placeholder" },
-//       invalid: { label: "Invalid", input: "rgb", value: "invalid" },
-//       hex6: { label: "Hex 6", input: "rgb", value: "#ffaa00" },
-//       hex8: { label: "Hex 8", input: "rgb", value: "#00aaff88" },
-//       rgb: { label: "RGB", input: "rgb", value: "rgb(255, 128, 0)" },
-//       rgba: { label: "RGBA", input: "rgba", value: "rgba(255, 0, 0, 0.5)" },
-//       rgbaBlack: { label: "RGBA Black", input: "rgba", value: "rgba(0, 0, 0, 1)" },
-//       rgbaWhite: { label: "RGBA White", input: "rgba", value: "rgba(255, 255, 255, 1)" },
-//       gradient: { label: "Gradient", input: "gradient", value: ["#000000", "#ffffff"] },
-//     },
-//   },
-// };
 
 function updateSettingsTreeNodes(
   previous: SettingsTreeNodes,

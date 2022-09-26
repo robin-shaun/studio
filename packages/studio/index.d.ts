@@ -501,7 +501,7 @@ declare module "@foxglove/studio" {
     /**
      * True if the clear button should be hidden.
      */
-    shouldHideClearButton?: boolean;
+    hideClearButton?: boolean;
   };
 
   export type SettingsTreeFields = Record<string, undefined | SettingsTreeField>;
