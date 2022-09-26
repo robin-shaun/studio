@@ -636,7 +636,7 @@ const ColorSettings: SettingsTreeNodes = {
         label: "Hidden Clear Button",
         input: "rgb",
         value: "#00ffbf",
-        shouldHideClearButton: true,
+        hideClearButton: true,
       },
       hex6: { label: "Hex 6", input: "rgb", value: "#ffaa00" },
       hex7: { label: "Hex 6", input: "rgb", value: "#ffaa00" },

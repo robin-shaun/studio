@@ -71,8 +71,7 @@ export function ColorPickerInput(props: ColorPickerInputProps): JSX.Element {
 
   const open = Boolean(anchorElement);
 
-  const shouldHideClearButton = (displayValue ?? "") !== "" || (hideClearButton ?? false);
-
+  const shouldHideClearButton = (displayValue ?? "") === "" || (hideClearButton ?? false);
   return (
     <Stack
       className={cx(classes.root, {
@@ -94,7 +93,7 @@ export function ColorPickerInput(props: ColorPickerInputProps): JSX.Element {
             <IconButton
               onClick={clearValue}
               size="small"
-              style={{ display: shouldHideClearButton ? "block" : "none" }}
+              style={{ visibility: shouldHideClearButton ? "hidden" : "visible" }}
             >
               <ClearIcon />
             </IconButton>

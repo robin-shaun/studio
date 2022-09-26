@@ -261,7 +261,7 @@ function FieldInput({
               payload: { path, input: "rgb", value },
             })
           }
-          hideClearButton={field.shouldHideClearButton}
+          hideClearButton={field.hideClearButton}
         />
       );
     case "rgba":
