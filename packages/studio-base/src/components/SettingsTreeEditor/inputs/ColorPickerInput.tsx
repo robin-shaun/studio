@@ -89,13 +89,8 @@ export function ColorPickerInput(props: ColorPickerInputProps): JSX.Element {
         InputProps={{
           readOnly: true,
           startAdornment: <ColorSwatch color={swatchColor} onClick={handleClick} />,
-          endAdornment: (
-            <IconButton
-              onClick={clearValue}
-              size="small"
-              disabled={disabled}
-              style={{ visibility: shouldHideClearButton ? "hidden" : "visible" }}
-            >
+          endAdornment: !shouldHideClearButton && (
+            <IconButton onClick={clearValue} size="small" disabled={disabled}>
               <ClearIcon />
             </IconButton>
           ),
