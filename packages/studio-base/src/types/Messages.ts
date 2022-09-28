@@ -16,11 +16,6 @@
 
 import { Time } from "@foxglove/rostime";
 
-export type Namespace = Readonly<{
-  topic: string;
-  name: string;
-}>;
-
 export type MutablePoint = {
   x: number;
   y: number;
@@ -43,16 +38,6 @@ export type Header = Readonly<{
 
 export type StampedMessage = Readonly<{
   header: Header;
-}>;
-
-export type GeometryMsgs$PoseArray = Readonly<{
-  header: Header;
-  poses: Pose[];
-}>;
-
-export type GeometryMsgs$PolygonStamped = Readonly<{
-  header: Header;
-  polygon: Polygon;
 }>;
 
 type Duration = Time;
@@ -89,30 +74,7 @@ export type MutablePose = {
   orientation: MutableOrientation;
 };
 
-export type Polygon = Readonly<{
-  points: Points;
-}>;
-
 export type FloatArray = ReadonlyArray<number> | Readonly<Float32Array> | Readonly<Float64Array>;
-
-export type LaserScan = Readonly<{
-  header: Header;
-  angle_increment: number;
-  angle_max: number;
-  angle_min: number;
-  intensities: FloatArray;
-  range_max: number;
-  range_min: number;
-  ranges: FloatArray;
-  scan_time?: number;
-  time_increment?: number;
-}>;
-
-export type PoseStamped = Readonly<
-  StampedMessage & {
-    pose: Pose;
-  }
->;
 
 type Colors = readonly Color[];
 
@@ -220,11 +182,6 @@ export type TextMarker = Readonly<
   }
 >;
 
-export type GlLineListMarker = Readonly<{
-  color: Float32Array;
-  points: Float32Array;
-}>;
-
 export type MeshMarker = Readonly<
   BaseMarker & {
     type: 10;
@@ -232,35 +189,6 @@ export type MeshMarker = Readonly<
     mesh_use_embedded_materials: boolean;
   }
 >;
-
-type NavMsgs$MapMetaData = Readonly<{
-  map_load_time: Time;
-  resolution: number;
-  width: number;
-  height: number;
-  origin: Pose;
-}>;
-
-export type NavMsgs$OccupancyGrid = Readonly<{
-  header: Header;
-  info: NavMsgs$MapMetaData;
-  data: ReadonlyArray<number> | Readonly<Int8Array>;
-}>;
-
-export type NavMsgs$Path = Readonly<{
-  header: Header;
-  poses: PoseStamped[];
-}>;
-
-export type OccupancyGridMessage = Readonly<{
-  header: Header;
-  name: string;
-  type: 101;
-  alpha?: number;
-  info: NavMsgs$MapMetaData;
-  pose: MutablePose;
-  data: ReadonlyArray<number> | Readonly<Int8Array>;
-}>;
 
 export type TriangleListMarker = Readonly<
   BaseMarker &
@@ -343,37 +271,6 @@ export type CompressedImage = Readonly<
   StampedMessage & {
     format: string;
     data: Uint8Array;
-  }
->;
-
-export type VelodynePacket = Readonly<{
-  stamp: Time;
-  data: Uint8Array; // 1206 bytes
-}>;
-
-export type VelodyneScan = Readonly<
-  StampedMessage & {
-    packets: VelodynePacket[];
-  }
->;
-
-export type VelodyneScanDecoded = Readonly<
-  PointCloud2 & {
-    packets: VelodynePacket[];
-  }
->;
-
-export type PointCloud = PointCloud2 | VelodyneScanDecoded;
-
-type Transform = Readonly<{
-  rotation: Orientation;
-  translation: Point;
-}>;
-
-export type TF = Readonly<
-  StampedMessage & {
-    transform: Transform;
-    child_frame_id: string;
   }
 >;
 
