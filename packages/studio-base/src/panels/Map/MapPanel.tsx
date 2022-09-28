@@ -20,11 +20,11 @@ import { useDebouncedCallback } from "use-debounce";
 
 import { toSec } from "@foxglove/rostime";
 import { PanelExtensionContext, MessageEvent, SettingsTreeAction } from "@foxglove/studio";
+import { Topic } from "@foxglove/studio";
 import Stack from "@foxglove/studio-base/components/Stack";
 import FilteredPointLayer, {
   POINT_MARKER_RADIUS,
 } from "@foxglove/studio-base/panels/Map/FilteredPointLayer";
-import { Topic } from "@foxglove/studio-base/players/types";
 import { FoxgloveMessages } from "@foxglove/studio-base/types/FoxgloveMessages";
 import { darkColor, lightColor, lineColors } from "@foxglove/studio-base/util/plotColors";
 
@@ -46,7 +46,30 @@ function isGeoJSONMessage(message: MessageEvent<unknown>): message is GeoJsonMes
   );
 }
 
-function topicMessageType(topic: Topic) {
+const supportedDatatypes = [
+  "sensor_msgs/NavSatFix",
+  "sensor_msgs/msg/NavSatFix",
+  "ros.sensor_msgs.NavSatFix",
+  "foxglove_msgs/LocationFix",
+  "foxglove_msgs/msg/LocationFix",
+  "foxglove.LocationFix",
+  "foxglove_msgs/GeoJSON",
+  "foxglove_msgs/msg/GeoJSON",
+  "foxglove.GeoJSON",
+];
+
+function isEligibleTopic(topic: Topic): boolean {
+  if (topic.alternativeDatatypes) {
+    for (const alternative of topic.alternativeDatatypes) {
+      if (supportedDatatypes.includes(alternative)) {
+        return true;
+      }
+    }
+  }
+
+  return supportedDatatypes.includes(topic.datatype);
+
+  /* fixme - remove?
   switch (topic.datatype) {
     case "sensor_msgs/NavSatFix":
     case "sensor_msgs/msg/NavSatFix":
@@ -54,14 +77,15 @@ function topicMessageType(topic: Topic) {
     case "foxglove_msgs/LocationFix":
     case "foxglove_msgs/msg/LocationFix":
     case "foxglove.LocationFix":
-      return "navsat";
+      return true;
     case "foxglove_msgs/GeoJSON":
     case "foxglove_msgs/msg/GeoJSON":
     case "foxglove.GeoJSON":
-      return "geojson";
+      return true;
     default:
-      return undefined;
+      return false;
   }
+  */
 }
 
 function MapPanel(props: MapPanelProps): JSX.Element {
@@ -115,15 +139,55 @@ function MapPanel(props: MapPanelProps): JSX.Element {
   const [allMapMessages, setAllMapMessages] = useState<MapPanelMessage[]>([]);
   const [currentMapMessages, setCurrentMapMessages] = useState<MapPanelMessage[]>([]);
 
-  const [allGeoMessages, allNavMessages] = useMemo(
-    () => partition(allMapMessages, isGeoJSONMessage),
-    [allMapMessages],
-  );
+  const [allGeoMessages, allNavMessages] = useMemo(() => {
+    const [geo, all] = partition(allMapMessages, isGeoJSONMessage);
 
-  const [currentGeoMessages, currentNavMessages] = useMemo(
-    () => partition(currentMapMessages, isGeoJSONMessage),
-    [currentMapMessages],
-  );
+    // fixme - transform all into the actual messages because some might not be the right type
+    const actualAll = [];
+
+    for (const msgEvent of all) {
+      // fixme - if the msgEvent is not a supported datatype we need to filter it out...
+
+      if (msgEvent.transformedMessages) {
+        for (const transformed of msgEvent.transformedMessages) {
+          if (supportedDatatypes.includes(transformed.datatype)) {
+            actualAll.push({
+              topic: msgEvent.topic,
+              receiveTime: msgEvent.receiveTime,
+              message: transformed.message,
+            });
+          }
+        }
+      }
+    }
+
+    return [geo, actualAll];
+  }, [allMapMessages]);
+
+  const [currentGeoMessages, currentNavMessages] = useMemo(() => {
+    const [geo, all] = partition(currentMapMessages, isGeoJSONMessage);
+
+    // fixme - transform all into the actual messages because some might not be the right type
+    const actualAll = [];
+
+    for (const msgEvent of all) {
+      // fixme - if the msgEvent is not a supported datatype we need to filter it out...
+
+      if (msgEvent.transformedMessages) {
+        for (const transformed of msgEvent.transformedMessages) {
+          if (supportedDatatypes.includes(transformed.datatype)) {
+            actualAll.push({
+              topic: msgEvent.topic,
+              receiveTime: msgEvent.receiveTime,
+              message: transformed.message,
+            });
+          }
+        }
+      }
+    }
+
+    return [geo, actualAll];
+  }, [currentMapMessages]);
 
   // Panel state management to track the list of available topics
   const [topics, setTopics] = useState<readonly Topic[]>([]);
@@ -151,7 +215,7 @@ function MapPanel(props: MapPanelProps): JSX.Element {
   const [renderDone, setRenderDone] = useState<() => void>(() => () => {});
 
   const eligibleTopics = useMemo(() => {
-    return topics.filter(topicMessageType).map((topic) => topic.name);
+    return topics.filter(isEligibleTopic).map((topic) => topic.name);
   }, [topics]);
 
   const settingsActionHandler = useCallback((action: SettingsTreeAction) => {
@@ -448,6 +512,7 @@ function MapPanel(props: MapPanelProps): JSX.Element {
       topicLayer.allFrames.clearLayers();
 
       const navMessages = allNavMessages.filter((message) => message.topic === topic);
+
       const pointLayer = FilteredPointLayer({
         map: currentMap,
         navSatMessageEvents: navMessages,

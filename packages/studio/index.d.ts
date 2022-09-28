@@ -51,6 +51,13 @@ declare module "@foxglove/studio" {
      * i.e. package.Message in protobuf-like serialization or pkg/Msg in ROS systems.
      */
     datatype: string;
+
+    /**
+     * Additional datatypes available for the topic.
+     *
+     * Any datatypes available will appear in the MessageEvent transformedMessages field
+     * */
+    alternativeDatatypes?: string[];
   };
 
   export type Subscription = {
@@ -94,6 +101,9 @@ declare module "@foxglove/studio" {
      * useful for statistics tracking and cache eviction.
      */
     sizeInBytes: number;
+
+    // fixme
+    transformedMessages?: { datatype: string; message: unknown }[];
   }>;
 
   export interface LayoutActions {
@@ -332,11 +342,21 @@ declare module "@foxglove/studio" {
     initPanel: (context: PanelExtensionContext) => void;
   };
 
+  export type RegisterMessageTransformerArgs<T = unknown, R = unknown> = {
+    inputDatatype: string;
+    outputDatatype: string;
+    transformer: (msg: T) => R;
+  };
+
   export interface ExtensionContext {
     /** The current _mode_ of the application. */
     readonly mode: "production" | "development" | "test";
 
     registerPanel(params: ExtensionPanelRegistration): void;
+
+    registerMessageTransformer<T = unknown, R = unknown>(
+      args: RegisterMessageTransformerArgs<T, R>,
+    ): void;
   }
 
   export interface ExtensionActivate {

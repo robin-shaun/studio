@@ -8,7 +8,7 @@ import shallowequal from "shallowequal";
 import { createStore, StoreApi } from "zustand";
 
 import { Condvar } from "@foxglove/den/async";
-import { MessageEvent } from "@foxglove/studio";
+import { MessageEvent, RegisterMessageTransformerArgs } from "@foxglove/studio";
 import {
   AdvertiseOptions,
   Player,
@@ -48,6 +48,7 @@ export type MessagePipelineInternalState = {
   lastMessageEventByTopic: Map<string, MessageEvent<unknown>>;
   /** Function to call when react render has completed with the latest state */
   renderDone?: () => void;
+  messageTransformers?: RegisterMessageTransformerArgs[];
 
   /** Part of the state that is exposed to consumers via useMessagePipeline */
   public: MessagePipelineContext;
@@ -68,7 +69,11 @@ export type MessagePipelineStateAction =
   | UpdateSubscriberAction
   | UpdatePlayerStateAction
   | { type: "set-player"; player: Player | undefined }
-  | { type: "set-publishers"; id: string; payloads: AdvertiseOptions[] };
+  | { type: "set-publishers"; id: string; payloads: AdvertiseOptions[] }
+  | {
+      type: "set-message-transformers";
+      messageTransformers: undefined | RegisterMessageTransformerArgs[];
+    };
 
 export function createMessagePipelineStore({
   promisesToWaitForRef,
@@ -88,6 +93,7 @@ export function createMessagePipelineStore({
     newTopicsBySubscriberId: new Map(),
     lastMessageEventByTopic: new Map(),
     lastCapabilities: [],
+    messageTransformers: undefined,
 
     public: {
       playerState: defaultPlayerState(),
@@ -225,6 +231,27 @@ function updatePlayerStateAction(
         continue;
       }
 
+      if (prevState.messageTransformers) {
+        // fixme - need topic -> datatype lookup
+        const topic = prevState.public.sortedTopics.find((val) => val.name === messageEvent.topic);
+        if (topic) {
+          // lookup the transformer that accepts as input the datatype of our topic
+          const transformer = prevState.messageTransformers.find(
+            (val) => val.inputDatatype === topic.datatype,
+          );
+
+          if (transformer) {
+            // fixme - try/catch problems
+            const outputMsg = transformer.transformer(messageEvent.message);
+            messageEvent.transformedMessages = messageEvent.transformedMessages ?? [];
+            messageEvent.transformedMessages.push({
+              datatype: transformer.outputDatatype,
+              message: outputMsg,
+            });
+          }
+        }
+      }
+
       for (const id of ids) {
         let subscriberMessageEvents = messagesBySubscriberId.get(id);
         if (!subscriberMessageEvents) {
@@ -271,7 +298,23 @@ function updatePlayerStateAction(
     newPublicState.sortedTopics = topics
       ? [...topics].sort((a, b) => a.name.localeCompare(b.name))
       : [];
+
+    // fixme - when message transformers change but topics have not we need to stil ldo this
+    if (prevState.messageTransformers) {
+      for (const topic of newPublicState.sortedTopics) {
+        const transformer = prevState.messageTransformers.find(
+          (val) => val.inputDatatype === topic.datatype,
+        );
+
+        // found a transformer matching our input datatype
+        if (transformer) {
+          topic.alternativeDatatypes = topic.alternativeDatatypes ?? [];
+          topic.alternativeDatatypes.push(transformer.outputDatatype);
+        }
+      }
+    }
   }
+
   if (
     action.playerState.activeData?.datatypes !== prevState.public.playerState.activeData?.datatypes
   ) {
@@ -345,6 +388,12 @@ export function reducer(
           setPlaybackSpeed: undefined,
           seekPlayback: undefined,
         },
+      };
+
+    case "set-message-transformers":
+      return {
+        ...prevState,
+        messageTransformers: action.messageTransformers,
       };
   }
 
