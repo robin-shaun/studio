@@ -2,15 +2,14 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { vec3 } from "gl-matrix";
-
-import type { PointCloud } from "@foxglove/schemas";
+import type { Grid } from "@foxglove/schemas";
 import { MessageEvent, Topic } from "@foxglove/studio";
+import { LayerSettingsFoxgloveGrid } from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/FoxgloveGrid";
 import PanelSetup from "@foxglove/studio-base/stories/PanelSetup";
 
 import ThreeDeeRender from "../index";
 import { TransformStamped } from "../ros";
-import { QUAT_IDENTITY, rad2deg, VEC3_ZERO } from "./common";
+import { QUAT_IDENTITY, rad2deg } from "./common";
 import useDelayedFixture from "./useDelayedFixture";
 
 export default {
@@ -18,18 +17,34 @@ export default {
   component: ThreeDeeRender,
 };
 
-function rgba(r: number, g: number, b: number, a: number) {
-  return (
-    (Math.trunc(r * 255) << 24) |
-    (Math.trunc(g * 255) << 16) |
-    (Math.trunc(b * 255) << 8) |
-    Math.trunc(a * 255)
-  );
+// function rgba(r: number, g: number, b: number, a: number) {
+//   return (
+//     (Math.trunc(r * 255) << 24) |
+//     (Math.trunc(g * 255) << 16) |
+//     (Math.trunc(b * 255) << 8) |
+//     Math.trunc(a * 255)
+//   );
+// }
+function makeGridData({ rows, cols, pattern }: { rows: number; cols: number; pattern: string }) {
+  const grid = new Uint8Array(rows * cols);
+  const view = new DataView(grid.buffer, grid.byteOffset, grid.byteLength);
+  for (let i = 0; i < rows; i++) {
+    for (let j = 0; j < cols; j++) {
+      const offset = i * rows + j;
+      if (pattern === "row-stripes") {
+        view.setUint8(offset, i % 2 === 0 ? 100 : 0);
+      } else if (pattern === "col-stripes") {
+        view.setUint8(offset, j % 2 === 0 ? 100 : 0);
+      } else if (pattern === "checkerboard") {
+        view.setUint8(offset, (i + j) % 2 === 0 ? 100 : 0);
+      }
+    }
+  }
+  return grid;
 }
-
 function Foxglove_Grid({ rgbaFieldName }: { rgbaFieldName: string }): JSX.Element {
   const topics: Topic[] = [
-    { name: "/pointcloud", datatype: "foxglove.Grid" },
+    { name: "/grid", datatype: "foxglove.Grid" },
     { name: "/tf", datatype: "geometry_msgs/TransformStamped" },
   ];
   const tf1: MessageEvent<TransformStamped> = {
@@ -59,50 +74,48 @@ function Foxglove_Grid({ rgbaFieldName }: { rgbaFieldName: string }): JSX.Elemen
     sizeInBytes: 0,
   };
 
-  const SCALE = 10 / 128;
-
-  function f(x: number, y: number) {
-    return (x / 128 - 0.5) ** 2 + (y / 128 - 0.5) ** 2;
-  }
-
-  function jet(x: number, a: number): number {
-    const i = Math.trunc(x * 255);
-    const r = Math.max(0, Math.min(255, 4 * (i - 96), 255 - 4 * (i - 224)));
-    const g = Math.max(0, Math.min(255, 4 * (i - 32), 255 - 4 * (i - 160)));
-    const b = Math.max(0, Math.min(255, 4 * i + 127, 255 - 4 * (i - 96)));
-    return rgba(r / 255, g / 255, b / 255, a);
-  }
-
-  const data = new Uint8Array(128 * 128 * 16);
+  const column_count = 16;
+  const rowCount = 16;
+  const cell_stride = 4;
+  const row_stride = column_count * cell_stride;
+  const rowStripes = makeGridData({ rows: rowCount, cols: column_count, pattern: "row-stripes" });
+  const colStripes = makeGridData({ rows: rowCount, cols: column_count, pattern: "col-stripes" });
+  const checkerboard = makeGridData({
+    rows: rowCount,
+    cols: column_count,
+    pattern: "checkerboard",
+  });
+  const data = new Uint8Array(column_count * rowCount * cell_stride);
   const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
-  for (let y = 0; y < 128; y += 3) {
-    for (let x = 0; x < 128; x += 3) {
-      const i = (y * 128 + x) * 16;
-      view.setFloat32(i + 0, x * SCALE - 5, true);
-      view.setFloat32(i + 4, y * SCALE - 5, true);
-      view.setFloat32(i + 8, f(x, y) * 5, true);
-      view.setUint32(i + 12, jet(f(x, y) * 2, x / 128), true);
-    }
+  for (let i = 0; i < rowCount * column_count; i++) {
+    const offset = i * cell_stride;
+    view.setUint8(offset, rowStripes[i]!);
+    view.setUint8(offset + 1, colStripes[i]!);
+    view.setUint8(offset + 2, checkerboard[i]!);
   }
 
-  const pointCloud: MessageEvent<PointCloud> = {
+  const cell_size = {
+    x: 10,
+    y: 10,
+  };
+  const grid: MessageEvent<Grid> = {
     topic: "/grid",
     receiveTime: { sec: 10, nsec: 0 },
     message: {
       timestamp: { sec: 0, nsec: 0 },
       frame_id: "sensor",
-      pose: { position: VEC3_ZERO, orientation: QUAT_IDENTITY },
-      cell_size: {
-        x: 1, y: 1,
+      pose: {
+        position: { x: -0.5 * cell_size.x, y: -0.5 * cell_size.y, z: 0 },
+        orientation: QUAT_IDENTITY,
       },
-      column_count: 10,
-      cell_stride: 16,
-      row_stride: 10 * 16
+      cell_size,
+      column_count,
+      cell_stride,
+      row_stride,
       fields: [
-        { name: "x", offset: 0, type: 7 },
-        { name: "y", offset: 4, type: 7 },
-        { name: "z", offset: 8, type: 7 },
-        { name: rgbaFieldName, offset: 12, type: 6 },
+        { name: "rowStripes", offset: 0, type: 1 },
+        { name: "colStripes", offset: 1, type: 1 },
+        { name: "checkerboard", offset: 2, type: 1 },
       ],
       data,
     },
@@ -112,7 +125,7 @@ function Foxglove_Grid({ rgbaFieldName }: { rgbaFieldName: string }): JSX.Elemen
   const fixture = useDelayedFixture({
     topics,
     frame: {
-      "/pointcloud": [pointCloud],
+      "/grid": [grid],
       "/tf": [tf1, tf2],
     },
     capabilities: [],
@@ -127,13 +140,12 @@ function Foxglove_Grid({ rgbaFieldName }: { rgbaFieldName: string }): JSX.Elemen
         overrideConfig={{
           followTf: "base_link",
           topics: {
-            "/pointcloud": {
+            "/grid": {
               visible: true,
-              pointSize: 10,
-              colorMode: rgbaFieldName,
               colorField: rgbaFieldName,
-              rgbByteOrder: "rgba",
-            },
+              minColor: "rgba(0, 0, 0, 255)",
+              maxColor: "rgba(255, 0, 0, 255)",
+            } as LayerSettingsFoxgloveGrid,
           },
           layers: {
             grid: { layerId: "foxglove.Grid" },
@@ -156,144 +168,14 @@ function Foxglove_Grid({ rgbaFieldName }: { rgbaFieldName: string }): JSX.Elemen
   );
 }
 
-  const pointCloud: MessageEvent<PointCloud> = {
-    topic: "/pointcloud",
-    receiveTime: { sec: 10, nsec: 0 },
-    message: {
-      timestamp: { sec: 0, nsec: 0 },
-      frame_id: "sensor",
-      point_stride: 13,
-      pose: { position: VEC3_ZERO, orientation: QUAT_IDENTITY },
-      fields: [
-        { name: "x", offset: 0, type: 7 },
-        { name: "y", offset: 4, type: 7 },
-        { name: "z", offset: 8, type: 7 },
-        { name: "intensity", offset: 12, type: 1 },
-      ],
-      data,
-    },
-    sizeInBytes: 0,
-  };
+export const Foxglove_Grid_Column_Stripes = (): JSX.Element => (
+  <Foxglove_Grid rgbaFieldName="colStripes" />
+);
+Foxglove_Grid_Column_Stripes.parameters = { colorScheme: "dark" };
 
-  const fixture = useDelayedFixture({
-    topics,
-    frame: {
-      "/pointcloud": [pointCloud],
-      "/tf": [tf1, tf2],
-    },
-    capabilities: [],
-    activeData: {
-      currentTime: { sec: 0, nsec: 0 },
-    },
-  });
-
-  return (
-    <PanelSetup fixture={fixture}>
-      <ThreeDeeRender
-        overrideConfig={{
-          followTf: "base_link",
-          topics: {
-            "/pointcloud": {
-              visible: true,
-              pointSize: 5,
-            },
-          },
-          layers: {
-            grid: { layerId: "foxglove.Grid" },
-          },
-          cameraState: {
-            distance: 13.5,
-            perspective: true,
-            phi: rad2deg(1.22),
-            targetOffset: [0.25, -0.5, 3],
-            thetaOffset: rad2deg(-0.33),
-            fovy: rad2deg(0.75),
-            near: 0.01,
-            far: 5000,
-            target: [0, 0, 0],
-            targetOrientation: [0, 0, 0, 1],
-          },
-        }}
-      />
-    </PanelSetup>
-  );
-}
-
-// Render a flat plane if we only have two dimensions
-Foxglove_PointCloud_TwoDimensions.parameters = { colorScheme: "dark" };
-export function Foxglove_PointCloud_TwoDimensions(): JSX.Element {
-  const topics: Topic[] = [{ name: "/pointcloud", datatype: "foxglove.PointCloud" }];
-
-  const SCALE = 10 / 128;
-
-  function f(x: number, y: number) {
-    return (x / 128 - 0.5) ** 2 + (y / 128 - 0.5) ** 2;
-  }
-
-  const data = new Uint8Array(128 * 128 * 12);
-  const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
-  for (let y = 0; y < 128; y++) {
-    for (let x = 0; x < 128; x++) {
-      const i = (y * 128 + x) * 12;
-      view.setFloat32(i + 0, x * SCALE - 5, true);
-      view.setFloat32(i + 4, y * SCALE - 5, true);
-      view.setFloat32(i + 8, f(x, y) * 5, true);
-    }
-  }
-
-  const pointCloud: MessageEvent<PointCloud> = {
-    topic: "/pointcloud",
-    receiveTime: { sec: 10, nsec: 0 },
-    message: {
-      timestamp: { sec: 0, nsec: 0 },
-      frame_id: "sensor",
-      point_stride: 12,
-      pose: { position: VEC3_ZERO, orientation: { x: 0.707, y: 0, z: 0, w: 0.707 } },
-      fields: [
-        { name: "x", offset: 0, type: 7 },
-        { name: "y", offset: 4, type: 7 },
-      ],
-      data,
-    },
-    sizeInBytes: 0,
-  };
-
-  const fixture = useDelayedFixture({
-    topics,
-    frame: {
-      "/pointcloud": [pointCloud],
-    },
-    capabilities: [],
-    activeData: {
-      currentTime: { sec: 0, nsec: 0 },
-    },
-  });
-
-  return (
-    <PanelSetup fixture={fixture}>
-      <ThreeDeeRender
-        overrideConfig={{
-          followTf: "sensor",
-          layers: {
-            grid: { layerId: "foxglove.Grid" },
-          },
-          cameraState: {
-            distance: 13.5,
-            perspective: true,
-            phi: rad2deg(1.22),
-            targetOffset: [0.25, -0.5, 0],
-            thetaOffset: rad2deg(-0.33),
-            fovy: rad2deg(0.75),
-            near: 0.01,
-            far: 5000,
-            target: [0, 0, 0],
-            targetOrientation: [0, 0, 0, 1],
-          },
-          topics: {
-            "/pointcloud": { visible: true },
-          },
-        }}
-      />
-    </PanelSetup>
-  );
-}
+export const Foxglove_Grid_Row_Stripes = (): JSX.Element => (
+  <Foxglove_Grid rgbaFieldName="rowstrips" />
+);
+export const Foxglove_Grid_Checkerboard = (): JSX.Element => (
+  <Foxglove_Grid rgbaFieldName="checkerboard" />
+);
