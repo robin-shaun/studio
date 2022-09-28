@@ -7,6 +7,10 @@ import { createContext } from "react";
 import { StoreApi, useStore } from "zustand";
 
 import { AppSetting } from "@foxglove/studio-base/AppSetting";
+import {
+  ExtensionCatalog,
+  useExtensionCatalog,
+} from "@foxglove/studio-base/context/ExtensionCatalogContext";
 import { useAppConfigurationValue } from "@foxglove/studio-base/hooks/useAppConfigurationValue";
 import { GlobalVariables } from "@foxglove/studio-base/hooks/useGlobalVariables";
 import useGuaranteedContext from "@foxglove/studio-base/hooks/useGuaranteedContext";
@@ -71,6 +75,8 @@ type ProviderProps = {
 const selectRenderDone = (state: MessagePipelineInternalState) => state.renderDone;
 const selectPublishers = (state: MessagePipelineInternalState) => state.public.publishers;
 const selectSubscriptions = (state: MessagePipelineInternalState) => state.public.subscriptions;
+const selectinstalledMessageTransformers = (state: ExtensionCatalog) =>
+  state.installedMessageTransformers;
 
 export function MessagePipelineProvider({
   children,
@@ -87,6 +93,15 @@ export function MessagePipelineProvider({
 
   const publishers = useStore(store, selectPublishers);
   const subscriptions = useStore(store, selectSubscriptions);
+
+  const installedMessageTransformers = useExtensionCatalog(selectinstalledMessageTransformers);
+
+  useEffect(() => {
+    store.getState().dispatch({
+      type: "set-message-transformers",
+      messageTransformers: installedMessageTransformers,
+    });
+  }, [installedMessageTransformers, store]);
 
   // Debounce the subscription updates for players. This batches multiple subscribe calls
   // into one update for the player which avoids fetching data that will be immediately discarded.

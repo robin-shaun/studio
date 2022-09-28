@@ -8,7 +8,7 @@ import shallowequal from "shallowequal";
 import { createStore, StoreApi } from "zustand";
 
 import { Condvar } from "@foxglove/den/async";
-import { MessageEvent } from "@foxglove/studio";
+import { MessageEvent, RegisterMessageTransformerArgs } from "@foxglove/studio";
 import {
   AdvertiseOptions,
   Player,
@@ -48,6 +48,7 @@ export type MessagePipelineInternalState = {
   lastMessageEventByTopic: Map<string, MessageEvent<unknown>>;
   /** Function to call when react render has completed with the latest state */
   renderDone?: () => void;
+  messageTransformers?: RegisterMessageTransformerArgs[];
 
   /** Part of the state that is exposed to consumers via useMessagePipeline */
   public: MessagePipelineContext;
@@ -68,7 +69,11 @@ export type MessagePipelineStateAction =
   | UpdateSubscriberAction
   | UpdatePlayerStateAction
   | { type: "set-player"; player: Player | undefined }
-  | { type: "set-publishers"; id: string; payloads: AdvertiseOptions[] };
+  | { type: "set-publishers"; id: string; payloads: AdvertiseOptions[] }
+  | {
+      type: "set-message-transformers";
+      messageTransformers: undefined | RegisterMessageTransformerArgs[];
+    };
 
 export function createMessagePipelineStore({
   promisesToWaitForRef,
@@ -88,6 +93,7 @@ export function createMessagePipelineStore({
     newTopicsBySubscriberId: new Map(),
     lastMessageEventByTopic: new Map(),
     lastCapabilities: [],
+    messageTransformers: undefined,
 
     public: {
       playerState: defaultPlayerState(),
@@ -233,6 +239,45 @@ function updatePlayerStateAction(
         }
         subscriberMessageEvents.push(messageEvent);
       }
+
+      // transformed message?
+      if (prevState.messageTransformers) {
+        // fixme - sigh
+        const topic = prevState.public.sortedTopics.find((val) => val.name === messageEvent.topic);
+        if (topic) {
+          // lookup the transformer that accepts as input the datatype of our topic
+          const transformer = prevState.messageTransformers.find(
+            (val) => val.inputDatatype === topic.datatype,
+          );
+
+          if (transformer) {
+            const transformedTopicName = `${topic.name}${transformer.topicSuffix}`;
+
+            // see if anyone is subscribing to our transformed topic
+            const transformedIds = subscriberIdsByTopic.get(transformedTopicName);
+            if (!transformedIds) {
+              continue;
+            }
+
+            const outputMsg = transformer.transformer(messageEvent.message);
+
+            for (const id of transformedIds) {
+              let subscriberMessageEvents = messagesBySubscriberId.get(id);
+              if (!subscriberMessageEvents) {
+                subscriberMessageEvents = [];
+                messagesBySubscriberId.set(id, subscriberMessageEvents);
+              }
+              subscriberMessageEvents.push({
+                message: outputMsg,
+                topic: transformedTopicName,
+                publishTime: messageEvent.publishTime,
+                sizeInBytes: 0, // fixme - ??
+                receiveTime: messageEvent.receiveTime,
+              });
+            }
+          }
+        }
+      }
     }
   }
 
@@ -271,7 +316,31 @@ function updatePlayerStateAction(
     newPublicState.sortedTopics = topics
       ? [...topics].sort((a, b) => a.name.localeCompare(b.name))
       : [];
+
+    // fixme - when message transformers change but topics have not we need to stil ldo this
+    if (prevState.messageTransformers) {
+      // apply the transformers
+      // for all existing topics, find one matching the inputDatatype
+      // when found
+      // make a new topic adding `/~(output-datatype)` to the topics list
+      // do we already have the topic injected?
+      for (const topic of newPublicState.sortedTopics) {
+        const transformer = prevState.messageTransformers.find(
+          (val) => val.inputDatatype === topic.datatype,
+        );
+
+        // found a transformer matching our input datatype
+        if (transformer) {
+          const transformedTopicName = `${topic.name}${transformer.topicSuffix}`;
+          newPublicState.sortedTopics.push({
+            name: transformedTopicName,
+            datatype: transformer.outputDatatype,
+          });
+        }
+      }
+    }
   }
+
   if (
     action.playerState.activeData?.datatypes !== prevState.public.playerState.activeData?.datatypes
   ) {
@@ -345,6 +414,12 @@ export function reducer(
           setPlaybackSpeed: undefined,
           seekPlayback: undefined,
         },
+      };
+
+    case "set-message-transformers":
+      return {
+        ...prevState,
+        messageTransformers: action.messageTransformers,
       };
   }
 

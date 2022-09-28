@@ -332,11 +332,22 @@ declare module "@foxglove/studio" {
     initPanel: (context: PanelExtensionContext) => void;
   };
 
+  export type RegisterMessageTransformerArgs<T = unknown, R = unknown> = {
+    inputDatatype: string;
+    outputDatatype: string;
+    topicSuffix: string;
+    transformer: (msg: T) => R;
+  };
+
   export interface ExtensionContext {
     /** The current _mode_ of the application. */
     readonly mode: "production" | "development" | "test";
 
     registerPanel(params: ExtensionPanelRegistration): void;
+
+    registerMessageTransformer<T = unknown, R = unknown>(
+      args: RegisterMessageTransformerArgs<T, R>,
+    ): void;
   }
 
   export interface ExtensionActivate {
