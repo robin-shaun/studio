@@ -65,9 +65,6 @@ rules:
   no-restricted-imports:
     - error
     - paths:
-        - name: "styled-components"
-          message: "styled-components has been deprecated. Use tss-react/mui instead."
-
         - name: "@fluentui/react"
           message: "@fluentui/react has been deprecated. Use tss-react/mui instead."
 

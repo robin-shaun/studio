@@ -8,7 +8,6 @@ import { ThemeProvider as FluentThemeProvider } from "@fluentui/react";
 import { registerIcons, unregisterIcons } from "@fluentui/style-utilities";
 import { ThemeProvider as MuiThemeProvider } from "@mui/material";
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
-import { ThemeProvider as StyledThemeProvider } from "styled-components";
 
 import { createMuiTheme, createFluentTheme } from "@foxglove/studio-base/theme";
 
@@ -72,12 +71,7 @@ export default function ThemeProvider({
           applyTo="none" // skip default global styles for now
           theme={fluentTheme}
         >
-          <StyledThemeProvider
-            // Expose the same theme to styled-components - see types/styled-components.d.ts for type definitions
-            theme={fluentTheme}
-          >
-            {children}
-          </StyledThemeProvider>
+          {children}
         </FluentThemeProvider>
       </MuiThemeProvider>
     </CacheProvider>
