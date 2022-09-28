@@ -48,7 +48,6 @@ type MutableOrientation = {
   z: number;
   w: number;
 };
-export type Orientation = Readonly<MutableOrientation>;
 
 export type Scale = Readonly<{
   x: number;
@@ -235,6 +234,22 @@ export type PointField = Readonly<{
   datatype: number;
   count: number;
 }>;
+
+// ts-prune-ignore-next
+export type PointCloud2 = StampedMessage & {
+  fields: readonly PointField[];
+  height: number;
+  width: number;
+  is_bigendian: boolean;
+  point_step: number; // Length of point in bytes
+  row_step: number; // Length of row in bytes
+  data: Uint8Array;
+  is_dense: boolean | number;
+  // this is appended by scene builder
+  type: 102;
+  // this is appended by scene builder
+  pose?: MutablePose;
+};
 
 export type Image = Readonly<
   StampedMessage & {
