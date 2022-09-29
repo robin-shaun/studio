@@ -327,20 +327,6 @@ function DefaultStory() {
       <PanelSetupWithData title="With interactionData">
         <Interactions {...(sharedProps as any)} />
       </PanelSetupWithData>
-      <PanelSetupWithData
-        title="Clicked link button"
-        onMount={(el) => {
-          const btn = el.querySelector("[data-testid='link-id']");
-          if (btn) {
-            (btn as any).click();
-          }
-        }}
-      >
-        <Interactions
-          {...(sharedProps as any)}
-          selectedObject={{ ...selectedObject, interactionData: { topic: "/foo/bar" } }}
-        />
-      </PanelSetupWithData>
     </Stack>
   );
 }
