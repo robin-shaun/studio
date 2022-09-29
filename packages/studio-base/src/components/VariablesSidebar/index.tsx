@@ -4,7 +4,7 @@
 
 import AddIcon from "@mui/icons-material/Add";
 import { Divider, IconButton } from "@mui/material";
-import { partition, union } from "lodash";
+import { union } from "lodash";
 import { useMemo, useRef, useState, ReactElement, useEffect } from "react";
 
 import { SidebarContent } from "@foxglove/studio-base/components/SidebarContent";
@@ -12,7 +12,6 @@ import Stack from "@foxglove/studio-base/components/Stack";
 import useGlobalVariables, {
   GlobalVariables,
 } from "@foxglove/studio-base/hooks/useGlobalVariables";
-import useLinkedGlobalVariables from "@foxglove/studio-base/hooks/useLinkedGlobalVariables";
 
 import Variable from "./Variable";
 import helpContent from "./index.help.md";
@@ -21,12 +20,7 @@ const ANIMATION_RESET_DELAY_MS = 1500;
 
 export default function VariablesSidebar(): ReactElement {
   const { globalVariables, setGlobalVariables } = useGlobalVariables();
-  const { linkedGlobalVariablesByName } = useLinkedGlobalVariables();
   const globalVariableNames = useMemo(() => Object.keys(globalVariables), [globalVariables]);
-
-  const [linked, unlinked] = useMemo(() => {
-    return partition(globalVariableNames, (name) => !!linkedGlobalVariablesByName[name]);
-  }, [globalVariableNames, linkedGlobalVariablesByName]);
 
   // Don't run the animation when the sidebar first renders
   const skipAnimation = useRef<boolean>(true);
@@ -77,21 +71,12 @@ export default function VariablesSidebar(): ReactElement {
     >
       <Stack flex="auto">
         <Divider />
-        {linked.map((name, idx) => (
+        {globalVariableNames.map((name, idx) => (
           <Variable
-            key={`linked.${name}`}
+            key={name}
             name={name}
             selected={!skipAnimation.current && changedVariables.includes(name)}
-            linked
-            linkedIndex={linked.length + idx}
-          />
-        ))}
-        {unlinked.map((name, idx) => (
-          <Variable
-            key={`unlinked.${name}`}
-            name={name}
-            selected={!skipAnimation.current && changedVariables.includes(name)}
-            linkedIndex={linked.length + idx}
+            index={idx}
           />
         ))}
       </Stack>

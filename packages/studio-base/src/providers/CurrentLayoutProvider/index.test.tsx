@@ -28,7 +28,6 @@ const TEST_LAYOUT: PanelsState = {
   configById: {},
   globalVariables: {},
   userNodes: {},
-  linkedGlobalVariables: [],
   playbackConfig: {
     speed: 0.2,
   },
@@ -116,7 +115,6 @@ describe("CurrentLayoutProvider", () => {
       layout: "Foo!bar",
       configById: { "Foo!bar": { setting: 1 } },
       globalVariables: { var: "hello" },
-      linkedGlobalVariables: [{ topic: "/test", markerKeyPath: [], name: "var" }],
       userNodes: { node1: { name: "node", sourceCode: "node()" } },
       playbackConfig: { speed: 0.1 },
     };

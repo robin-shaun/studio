@@ -10,7 +10,6 @@ import Logger from "@foxglove/log";
 import { VariableValue } from "@foxglove/studio";
 import { selectWithUnstableIdentityWarning } from "@foxglove/studio-base/hooks/selectWithUnstableIdentityWarning";
 import useGuaranteedContext from "@foxglove/studio-base/hooks/useGuaranteedContext";
-import { LinkedGlobalVariables } from "@foxglove/studio-base/hooks/useLinkedGlobalVariables";
 import useShouldNotChangeOften from "@foxglove/studio-base/hooks/useShouldNotChangeOften";
 import toggleSelectedPanel from "@foxglove/studio-base/providers/CurrentLayoutProvider/toggleSelectedPanel";
 import { LayoutID } from "@foxglove/studio-base/services/ILayoutStorage";
@@ -78,7 +77,6 @@ export interface ICurrentLayout {
     overwriteGlobalVariables: (payload: Record<string, VariableValue>) => void;
     setGlobalVariables: (payload: Record<string, VariableValue>) => void;
     setUserNodes: (payload: Partial<UserNodes>) => void;
-    setLinkedGlobalVariables: (payload: LinkedGlobalVariables) => void;
     setPlaybackConfig: (payload: Partial<PlaybackConfig>) => void;
     closePanel: (payload: ClosePanelPayload) => void;
     splitPanel: (payload: SplitPanelPayload) => void;

@@ -42,7 +42,6 @@ import {
   useUserNodeState,
 } from "@foxglove/studio-base/context/UserNodeStateContext";
 import { GlobalVariables } from "@foxglove/studio-base/hooks/useGlobalVariables";
-import { LinkedGlobalVariables } from "@foxglove/studio-base/hooks/useLinkedGlobalVariables";
 import { Diagnostic, UserNodeLog } from "@foxglove/studio-base/players/UserNodePlayer/types";
 import {
   Topic,
@@ -85,7 +84,6 @@ export type Fixture = {
   datatypes?: RosDatatypes;
   globalVariables?: GlobalVariables;
   layout?: MosaicNode<string>;
-  linkedGlobalVariables?: LinkedGlobalVariables;
   userNodes?: UserNodes;
   userNodeDiagnostics?: { [nodeId: string]: readonly Diagnostic[] };
   userNodeFlags?: { id: string };
@@ -223,7 +221,6 @@ function UnconnectedPanelSetup(props: UnconnectedProps): JSX.Element | ReactNull
       globalVariables,
       userNodes,
       layout,
-      linkedGlobalVariables,
       userNodeDiagnostics,
       userNodeLogs,
       userNodeRosLib,
@@ -237,9 +234,6 @@ function UnconnectedPanelSetup(props: UnconnectedProps): JSX.Element | ReactNull
     }
     if (layout != undefined) {
       actions.changePanelLayout({ layout });
-    }
-    if (linkedGlobalVariables) {
-      actions.setLinkedGlobalVariables(linkedGlobalVariables);
     }
     if (userNodeDiagnostics) {
       for (const [nodeId, diagnostics] of Object.entries(userNodeDiagnostics)) {
