@@ -36,7 +36,6 @@ import {
 } from "@foxglove/studio-base/players/types";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 import delay from "@foxglove/studio-base/util/delay";
-import { SEEK_ON_START_NS } from "@foxglove/studio-base/util/time";
 
 import { BlockLoader } from "./BlockLoader";
 import { BufferedIterableSource } from "./BufferedIterableSource";
@@ -61,6 +60,10 @@ const MIN_MEM_CACHE_BLOCK_SIZE_NS = 0.1e9;
 // Adaptive block sizing is simpler than using a tree structure for immutable updates but
 // less flexible, so we may want to move away from a single-level block structure in the future.
 const MAX_BLOCKS = 400;
+
+// Amount to seek into the bag from the start when loading the player, to show
+// something useful on the screen.
+const SEEK_ON_START_NS = BigInt(99 * 1e6);
 
 type IterablePlayerOptions = {
   metricsCollector?: PlayerMetricsCollectorInterface;
@@ -495,7 +498,7 @@ export class IterablePlayer implements Player {
         }
       }
 
-      // set the initial topics for the loader
+      this._presence = PlayerPresence.PRESENT;
     } catch (error) {
       this._setError(`Error initializing: ${error.message}`, error);
     }

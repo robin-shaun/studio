@@ -6,7 +6,7 @@ import {
   IDataSourceFactory,
   DataSourceFactoryInitializeArgs,
 } from "@foxglove/studio-base/context/PlayerSelectionContext";
-import { IterablePlayer } from "@foxglove/studio-base/players/IterablePlayer";
+import { IterablePlayer, WorkerIterablePlayer } from "@foxglove/studio-base/players/IterablePlayer";
 import { BagIterableSource } from "@foxglove/studio-base/players/IterablePlayer/BagIterableSource";
 import { Player } from "@foxglove/studio-base/players/types";
 
@@ -17,7 +17,18 @@ class Ros1LocalBagDataSourceFactory implements IDataSourceFactory {
   public iconName: IDataSourceFactory["iconName"] = "OpenFile";
   public supportedFileTypes = [".bag"];
 
+  // fixme - feature flag
+  private _enableExperimentalWorker = true;
+
   public initialize(args: DataSourceFactoryInitializeArgs): Player | undefined {
+    if (this._enableExperimentalWorker) {
+      return new WorkerIterablePlayer({
+        sourceType: "rosbag",
+        sourceId: this.id,
+        factoryArgs: args,
+      });
+    }
+
     const file = args.file;
     if (!file) {
       return;
