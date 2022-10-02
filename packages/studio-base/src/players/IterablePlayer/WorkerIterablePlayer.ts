@@ -98,6 +98,7 @@ export class WorkerIterablePlayer implements Player {
 
   public setPlaybackSpeed(speed: number): void {
     // fixme
+    void this._worker?.setPlaybackSpeed(speed);
   }
 
   public seekPlayback(time: Time): void {

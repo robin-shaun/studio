@@ -272,6 +272,14 @@ export class WorkerIterablePlayerWorker {
     }
   }
 
+  public setPlaybackSpeed(speed: number): void {
+    delete this._lastRangeMillis;
+    this._speed = speed;
+
+    // Queue event state update to update speed in player state to UI
+    this._queueEmitState();
+  }
+
   public startPlay(opt?: { untilTime: Time }): void {
     if (this._isPlaying || this._untilTime) {
       return;
