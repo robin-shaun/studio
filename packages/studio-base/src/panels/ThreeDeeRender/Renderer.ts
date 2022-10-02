@@ -43,7 +43,7 @@ import {
   normalizeTransformStamped,
 } from "./normalizeMessages";
 import { Cameras } from "./renderables/Cameras";
-import { CoreSettings, TopicsFilterSelect } from "./renderables/CoreSettings";
+import { CoreSettings } from "./renderables/CoreSettings";
 import { FrameAxes, LayerSettingsTransform } from "./renderables/FrameAxes";
 import { Grids } from "./renderables/Grids";
 import { Images } from "./renderables/Images";
@@ -99,7 +99,6 @@ export type RendererEvents = {
 };
 
 export type FollowMode = "follow-pose" | "follow-position" | "follow-none";
-export type TopicsFilter = "all" | "visible" | "not-visible";
 
 export type RendererConfig = {
   /** Camera settings for the currently rendering scene */
@@ -108,8 +107,6 @@ export type RendererConfig = {
   followTf: string | undefined;
   /** Camera follow mode */
   followMode: FollowMode;
-  /** Filter Mode for Showing Topics in Settings Panel */
-  topicsFilter: TopicsFilter;
   scene: {
     /** Show rendering metrics in a DOM overlay */
     enableStats?: boolean;
@@ -132,6 +129,8 @@ export type RendererConfig = {
       lineWidth?: number;
       /** Color of the connecting line between child and parent frames */
       lineColor?: string;
+      /** Enable transform preloading */
+      enablePreloading?: boolean;
     };
     /** Toggles visibility of all topics */
     topicsVisible?: boolean;
@@ -207,6 +206,7 @@ const DEFAULT_FRAME_IDS = ["base_link", "odom", "map", "earth"];
 const FOLLOW_TF_PATH = ["general", "followTf"];
 const NO_FRAME_SELECTED = "NO_FRAME_SELECTED";
 const FRAME_NOT_FOUND = "FRAME_NOT_FOUND";
+const TF_OVERFLOW = "TF_OVERFLOW";
 
 // An extensionId for creating the top-level settings nodes such as "Topics" and
 // "Custom Layers"
@@ -294,7 +294,6 @@ export class Renderer extends EventEmitter<RendererEvents> {
   private aspect: number;
   private controls: OrbitControls;
   public followMode: FollowMode;
-  private topicsFilter: TopicsFilter;
   // The pose of the render frame in the fixed frame when following was disabled
   private unfollowPoseSnapshot: Pose | undefined;
 
@@ -426,8 +425,6 @@ export class Renderer extends EventEmitter<RendererEvents> {
     this.followFrameId = config.followTf;
     this.followMode = config.followMode;
 
-    this.topicsFilter = config.topicsFilter;
-
     const samples = msaaSamples(this.gl.capabilities);
     const renderSize = this.gl.getDrawingBufferSize(tempVec2);
     this.aspect = renderSize.width / renderSize.height;
@@ -441,17 +438,17 @@ export class Renderer extends EventEmitter<RendererEvents> {
     this.addDatatypeSubscriptions(FRAME_TRANSFORM_DATATYPES, {
       handler: this.handleFrameTransform,
       forced: true,
-      preload: true,
+      preload: config.scene.transforms?.enablePreloading ?? true,
     });
     this.addDatatypeSubscriptions(TF_DATATYPES, {
       handler: this.handleTFMessage,
       forced: true,
-      preload: true,
+      preload: config.scene.transforms?.enablePreloading ?? true,
     });
     this.addDatatypeSubscriptions(TRANSFORM_STAMPED_DATATYPES, {
       handler: this.handleTransformStamped,
       forced: true,
-      preload: true,
+      preload: config.scene.transforms?.enablePreloading ?? true,
     });
 
     this.addSceneExtension(this.coreSettings);
@@ -603,33 +600,8 @@ export class Renderer extends EventEmitter<RendererEvents> {
     };
     this.customLayerActions.set(options.layerId, { action, handler });
 
-    this.syncSettingsTree();
-  }
-
-  public syncSettingsTree(): void {
     // "Topics" settings tree node
-    const topics = this._getTopicsSettings();
-    // "Custom Layers" settings tree node
-    const customLayers = this._getCustomlayerSettings();
-    this.settings.setNodesForKey(RENDERER_ID, [topics, customLayers]);
-    this._rebuildSceneExtensionNodes();
-  }
-
-  private _getCustomlayerSettings() {
-    const layerCount = Object.keys(this.config.layers).length;
-    return {
-      path: ["layers"],
-      node: {
-        label: `Custom Layers${layerCount > 0 ? ` (${layerCount})` : ""}`,
-        children: this.settings.tree()["layers"]?.children,
-        actions: Array.from(this.customLayerActions.values()).map((entry) => entry.action),
-        handler: this.handleCustomLayersAction,
-      },
-    };
-  }
-
-  private _getTopicsSettings(): SettingsTreeEntry {
-    return {
+    const topics: SettingsTreeEntry = {
       path: ["topics"],
       node: {
         label: "Topics",
@@ -638,16 +610,24 @@ export class Renderer extends EventEmitter<RendererEvents> {
           { id: "show-all", type: "action", label: "Show All" },
           { id: "hide-all", type: "action", label: "Hide All" },
         ],
-        fields: {
-          topicsFilter: {
-            ...TopicsFilterSelect,
-            value: this.topicsFilter,
-          },
-        },
         children: this.settings.tree()["topics"]?.children,
         handler: this.handleTopicsAction,
       },
     };
+
+    // "Custom Layers" settings tree node
+    const layerCount = Object.keys(this.config.layers).length;
+    const customLayers: SettingsTreeEntry = {
+      path: ["layers"],
+      node: {
+        label: `Custom Layers${layerCount > 0 ? ` (${layerCount})` : ""}`,
+        children: this.settings.tree()["layers"]?.children,
+        actions: Array.from(this.customLayerActions.values()).map((entry) => entry.action),
+        handler: this.handleCustomLayersAction,
+      },
+    };
+
+    this.settings.setNodesForKey(RENDERER_ID, [topics, customLayers]);
   }
 
   private defaultFrameId(): string | undefined {
@@ -725,29 +705,10 @@ export class Renderer extends EventEmitter<RendererEvents> {
       // Rebuild topicsByName
       this.topicsByName = topics ? new Map(topics.map((topic) => [topic.name, topic])) : undefined;
 
-      this._rebuildSceneExtensionNodes();
-    }
-  }
-
-  private _rebuildSceneExtensionNodes(): void {
-    const listVisibleFilter = (entry: SettingsTreeEntry) =>
-      entry.node.visible == undefined || entry.node.visible;
-    const listInvisibleFilter = (entry: SettingsTreeEntry) =>
-      entry.node.visible == undefined || !entry.node.visible;
-
-    const filterFn =
-      this.topicsFilter === "visible"
-        ? listVisibleFilter
-        : this.topicsFilter === "not-visible"
-        ? listInvisibleFilter
-        : undefined;
-
-    // Rebuild the settings nodes for all scene extensions
-    for (const extension of this.sceneExtensions.values()) {
-      const settingsNodes = filterFn
-        ? extension.settingsNodes().filter(filterFn)
-        : extension.settingsNodes();
-      this.settings.setNodesForKey(extension.extensionId, settingsNodes);
+      // Rebuild the settings nodes for all scene extensions
+      for (const extension of this.sceneExtensions.values()) {
+        this.settings.setNodesForKey(extension.extensionId, extension.settingsNodes());
+      }
     }
   }
 
@@ -975,6 +936,17 @@ export class Renderer extends EventEmitter<RendererEvents> {
       this.coordinateFrameList = this.transformTree.frameList();
       this.emit("transformTreeUpdated", this);
     }
+
+    // Check if the transform history for this frame is at capacity and show an error if so. This
+    // error can't be cleared until the scene is reloaded
+    const frame = this.transformTree.getOrCreateFrame(childFrameId);
+    if (frame.transformsSize() === frame.maxCapacity) {
+      this.settings.errors.add(
+        ["transforms", `frame:${childFrameId}`],
+        TF_OVERFLOW,
+        `Transform history is at capacity (${frame.maxCapacity}), TFs will be dropped`,
+      );
+    }
   }
 
   // Callback handlers
@@ -1145,18 +1117,6 @@ export class Renderer extends EventEmitter<RendererEvents> {
 
   private handleTopicsAction = (action: SettingsTreeAction): void => {
     const path = action.payload.path;
-    if (
-      action.action === "update" &&
-      path.length === 2 &&
-      path[0] === "topics" &&
-      path[1] === "topicsFilter"
-    ) {
-      const value = action.payload.value as TopicsFilter;
-      this.topicsFilter = value;
-      this.syncSettingsTree();
-      return;
-    }
-
     if (action.action !== "perform-node-action" || path.length !== 1 || path[0] !== "topics") {
       return;
     }
@@ -1183,7 +1143,6 @@ export class Renderer extends EventEmitter<RendererEvents> {
       // Hide all topics
       toggleTopicVisibility(false);
     }
-    this.syncSettingsTree();
   };
 
   private handleCustomLayersAction = (action: SettingsTreeAction): void => {

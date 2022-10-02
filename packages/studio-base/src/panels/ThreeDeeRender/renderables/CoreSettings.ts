@@ -30,17 +30,7 @@ export const DEFAULT_PUBLISH_SETTINGS: RendererConfig["publish"] = {
   poseEstimateThetaDeviation: round(Math.PI / 12, 8),
 };
 
-const TopicsFilterOptions = [
-  { label: "All", value: "all" },
-  { label: "Visible", value: "visible" },
-  { label: "Not Visible", value: "not-visible" },
-];
-export const TopicsFilterSelect = {
-  label: "Filter topics",
-  help: "Filter topics by visibility",
-  input: "select" as const,
-  options: TopicsFilterOptions,
-};
+const FOLLOW_TF_PATH = ["general", "followTf"];
 
 export class CoreSettings extends SceneExtension {
   public constructor(renderer: Renderer) {
@@ -87,7 +77,7 @@ export class CoreSettings extends SceneExtension {
       [this.renderer.followFrameId, config.followTf, this.renderer.renderFrameId],
       followTfOptions,
     );
-    const followTfError = this.renderer.settings.errors.errors.errorAtPath(["general", "followTf"]);
+    const followTfError = this.renderer.settings.errors.errors.errorAtPath(FOLLOW_TF_PATH);
 
     const followModeOptions = [
       { label: "Pose", value: "follow-pose" },
