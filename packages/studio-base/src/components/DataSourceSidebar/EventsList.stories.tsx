@@ -54,7 +54,7 @@ export function Filtered(): JSX.Element {
 }
 Filtered.play = async () => {
   const user = userEvent.setup();
-  const filter = await screen.findByPlaceholderText("Filter event metadata");
+  const filter = await screen.findByPlaceholderText("Search by key:value");
   await user.click(filter);
   await user.keyboard("type a");
 };
