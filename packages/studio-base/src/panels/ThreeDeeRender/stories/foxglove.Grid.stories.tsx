@@ -17,14 +17,6 @@ export default {
   component: ThreeDeeRender,
 };
 
-// function rgba(r: number, g: number, b: number, a: number) {
-//   return (
-//     (Math.trunc(r * 255) << 24) |
-//     (Math.trunc(g * 255) << 16) |
-//     (Math.trunc(b * 255) << 8) |
-//     Math.trunc(a * 255)
-//   );
-// }
 function makeGridData({ rows, cols, pattern }: { rows: number; cols: number; pattern: string }) {
   const grid = new Uint8Array(rows * cols);
   const view = new DataView(grid.buffer, grid.byteOffset, grid.byteLength);
@@ -143,8 +135,7 @@ function Foxglove_Grid({ rgbaFieldName }: { rgbaFieldName: string }): JSX.Elemen
             "/grid": {
               visible: true,
               colorField: rgbaFieldName,
-              minColor: "rgba(0, 0, 0, 255)",
-              maxColor: "rgba(255, 0, 0, 255)",
+              colorMode: "colormap",
             } as LayerSettingsFoxgloveGrid,
           },
           layers: {

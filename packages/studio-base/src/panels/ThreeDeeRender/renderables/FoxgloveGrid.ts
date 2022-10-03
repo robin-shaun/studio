@@ -5,40 +5,55 @@
 import * as THREE from "three";
 
 import { toNanoSec } from "@foxglove/rostime";
-import { Grid, PackedElementField } from "@foxglove/schemas";
-import { SettingsTreeAction, SettingsTreeFields } from "@foxglove/studio";
+import { Grid, NumericType, PackedElementField } from "@foxglove/schemas";
+import { SettingsTreeAction } from "@foxglove/studio";
 import { GRID_DATATYPES } from "@foxglove/studio-base/panels/ThreeDeeRender/foxglove";
+import {
+  baseColorModeSettingsNode,
+  colorHasTransparency,
+  ColorModeSettings,
+  getColorConverter,
+} from "@foxglove/studio-base/panels/ThreeDeeRender/renderables/pointClouds/colors";
 import type { RosValue } from "@foxglove/studio-base/players/types";
 
 import { BaseUserData, Renderable } from "../Renderable";
 import { Renderer } from "../Renderer";
 import { PartialMessage, PartialMessageEvent, SceneExtension } from "../SceneExtension";
-import { SettingsTreeEntry } from "../SettingsManager";
-import { rgbaToCssString, SRGBToLinear, stringToRgba } from "../color";
+import { SettingsTreeEntry, SettingsTreeNodeWithActionHandler } from "../SettingsManager";
+import { rgbaToCssString } from "../color";
 import { normalizePose, normalizeTime, normalizeByteArray } from "../normalizeMessages";
-import { ColorRGBA } from "../ros";
 import { BaseSettings } from "../settings";
+import { FieldReader, getReader } from "./pointClouds/fieldReaders";
 
-export type LayerSettingsFoxgloveGrid = BaseSettings & {
-  frameLocked: boolean;
-  minColor: string;
-  maxColor: string;
-  colorField?: string;
-};
+export type LayerSettingsFoxgloveGrid = BaseSettings &
+  ColorModeSettings & {
+    frameLocked: boolean;
+  };
+function zeroReader(): number {
+  return 0;
+}
 
 const INVALID_FOXGLOVE_GRID = "INVALID_FOXGLOVE_GRID";
 
-const DEFAULT_MIN_COLOR = { r: 1, g: 1, b: 1, a: 1 }; // white
-const DEFAULT_MAX_COLOR = { r: 0, g: 0, b: 0, a: 1 }; // black
-
-const DEFAULT_MIN_COLOR_STR = rgbaToCssString(DEFAULT_MIN_COLOR);
-const DEFAULT_MAX_COLOR_STR = rgbaToCssString(DEFAULT_MAX_COLOR);
+const DEFAULT_COLOR_MAP = "turbo";
+const DEFAULT_FLAT_COLOR = { r: 1, g: 1, b: 1, a: 1 };
+const DEFAULT_MIN_COLOR = { r: 100, g: 47, b: 105, a: 1 };
+const DEFAULT_MAX_COLOR = { r: 227, g: 177, b: 135, a: 1 };
+const SKIP_MIN_MAX = ["flat", "rgb", "rgba"];
+const DEFAULT_RGB_BYTE_ORDER = "rgba";
 
 const DEFAULT_SETTINGS: LayerSettingsFoxgloveGrid = {
   visible: false,
   frameLocked: false,
-  minColor: DEFAULT_MIN_COLOR_STR,
-  maxColor: DEFAULT_MAX_COLOR_STR,
+  colorMode: "flat",
+  minValue: undefined,
+  maxValue: undefined,
+  flatColor: rgbaToCssString(DEFAULT_FLAT_COLOR),
+  colorField: undefined,
+  gradient: [rgbaToCssString(DEFAULT_MIN_COLOR), rgbaToCssString(DEFAULT_MAX_COLOR)],
+  colorMap: DEFAULT_COLOR_MAP,
+  explicitAlpha: 1,
+  rgbByteOrder: DEFAULT_RGB_BYTE_ORDER,
 };
 
 export type FoxgloveGridUserData = BaseUserData & {
@@ -62,7 +77,11 @@ export class FoxgloveGridRenderable extends Renderable<FoxgloveGridUserData> {
     return this.userData.foxgloveGrid;
   }
 }
-
+const tempFieldReader = {
+  fieldReader: zeroReader as FieldReader,
+};
+const tempColor = { r: 0, g: 0, b: 0, a: 1 };
+const tempMinMaxColor: THREE.Vector2Tuple = [0, 0];
 export class FoxgloveGrid extends SceneExtension<FoxgloveGridRenderable> {
   private static geometry: THREE.PlaneGeometry | undefined;
   private fieldsByTopic = new Map<string, string[]>();
@@ -80,29 +99,18 @@ export class FoxgloveGrid extends SceneExtension<FoxgloveGridRenderable> {
     for (const topic of this.renderer.topics ?? []) {
       if (GRID_DATATYPES.has(topic.datatype)) {
         const config = (configTopics[topic.name] ?? {}) as Partial<LayerSettingsFoxgloveGrid>;
-        const topicFields =
-          this.fieldsByTopic
-            .get(topic.name)
-            ?.map((fieldName) => ({ label: fieldName, value: fieldName })) ?? [];
 
-        // prettier-ignore
-        const fields: SettingsTreeFields = {
-          minColor: { label: "Min Color", input: "rgba", value: config.minColor ?? DEFAULT_MIN_COLOR_STR },
-          maxColor: { label: "Max Color", input: "rgba", value: config.maxColor ?? DEFAULT_MAX_COLOR_STR },
-          frameLocked: { label: "Frame lock", input: "boolean", value: config.frameLocked ?? false },
-          colorField: { input: "select", label: "Color by", options: topicFields, value: config.colorField ?? undefined},
+        const node = baseColorModeSettingsNode(this.fieldsByTopic, config, topic, DEFAULT_SETTINGS);
+        node.icon = "Cells";
+        node.fields!.frameLocked = {
+          label: "Frame lock",
+          input: "boolean",
+          value: config.frameLocked ?? DEFAULT_SETTINGS.frameLocked,
         };
-
+        (node as SettingsTreeNodeWithActionHandler).handler = handler;
         entries.push({
           path: ["topics", topic.name],
-          node: {
-            label: topic.name,
-            icon: "Cells",
-            fields,
-            visible: config.visible ?? DEFAULT_SETTINGS.visible,
-            order: topic.name.toLocaleLowerCase(),
-            handler,
-          },
+          node,
         });
       }
     }
@@ -121,14 +129,14 @@ export class FoxgloveGrid extends SceneExtension<FoxgloveGridRenderable> {
     const topicName = path[1]!;
     const renderable = this.renderables.get(topicName);
     if (renderable) {
-      const prevTransparent = foxgloveGridHasTransparency(renderable.userData.settings);
+      const prevTransparent = colorHasTransparency(renderable.userData.settings);
       const settings = this.renderer.config.topics[topicName] as
         | Partial<LayerSettingsFoxgloveGrid>
         | undefined;
       renderable.userData.settings = { ...DEFAULT_SETTINGS, ...settings };
 
       // Check if the transparency changed and we need to create a new material
-      const newTransparent = foxgloveGridHasTransparency(renderable.userData.settings);
+      const newTransparent = colorHasTransparency(renderable.userData.settings);
       if (prevTransparent !== newTransparent) {
         renderable.userData.material.transparent = newTransparent;
         renderable.userData.material.depthWrite = !newTransparent;
@@ -139,6 +147,7 @@ export class FoxgloveGrid extends SceneExtension<FoxgloveGridRenderable> {
         renderable,
         renderable.userData.foxgloveGrid,
         renderable.userData.receiveTime,
+        renderable.userData.settings,
       );
     }
   };
@@ -155,6 +164,17 @@ export class FoxgloveGrid extends SceneExtension<FoxgloveGridRenderable> {
         | Partial<LayerSettingsFoxgloveGrid>
         | undefined;
       const settings = { ...DEFAULT_SETTINGS, ...userSettings };
+      if (settings.colorField == undefined) {
+        autoSelectColorField(settings, foxgloveGrid);
+        // Update user settings with the newly selected color field
+        this.renderer.updateConfig((draft) => {
+          const updatedUserSettings = { ...userSettings };
+          updatedUserSettings.colorField = settings.colorField;
+          updatedUserSettings.colorMode = settings.colorMode;
+          updatedUserSettings.colorMap = settings.colorMap;
+          draft.topics[topic] = updatedUserSettings;
+        });
+      }
 
       const texture = createTexture(foxgloveGrid);
       const mesh = createMesh(topic, texture, settings);
@@ -189,32 +209,114 @@ export class FoxgloveGrid extends SceneExtension<FoxgloveGridRenderable> {
       this.updateSettingsTree();
     }
 
-    this._updateFoxgloveGridRenderable(renderable, foxgloveGrid, receiveTime);
+    this._updateFoxgloveGridRenderable(
+      renderable,
+      foxgloveGrid,
+      receiveTime,
+      renderable.userData.settings,
+    );
   };
+
+  private _getFieldReader(
+    output: { fieldReader: FieldReader },
+    foxgloveGrid: Grid,
+    renderable: FoxgloveGridRenderable,
+    settings: LayerSettingsFoxgloveGrid,
+  ): boolean {
+    let colorReader: FieldReader | undefined;
+
+    const stride = foxgloveGrid.cell_stride;
+
+    // Determine the minimum bytes needed per cell based on offset/size of each
+    // field, so we can ensure cell_stride is >= this value
+    let minBytesPerCell = 0;
+
+    for (let i = 0; i < foxgloveGrid.fields.length; i++) {
+      const field = foxgloveGrid.fields[i]!;
+      const { type, offset, name } = field;
+
+      const byteWidth = numericTypeWidth(type);
+      minBytesPerCell = Math.max(minBytesPerCell, offset + byteWidth);
+
+      if (name === settings.colorField) {
+        // If the selected color mode is rgb/rgba and the field only has one channel with at least a
+        // four byte width, force the color data to be interpreted as four individual bytes. This
+        // overcomes a common problem where the color field data type is set to float32 or something
+        // other than uint32
+        const forceType =
+          (settings.colorMode === "rgb" || settings.colorMode === "rgba") && byteWidth >= 4
+            ? NumericType.UINT32
+            : undefined;
+        colorReader = getReader(field, stride, forceType);
+        if (!colorReader) {
+          const typeName = NumericType[type];
+          const message = `Grid field "${field.name}" is invalid. type=${typeName}, offset=${field.offset}, stride=${stride}`;
+          invalidFoxgloveGridError(this.renderer, renderable, message);
+          return false;
+        }
+      }
+    }
+
+    if (minBytesPerCell > stride) {
+      const message = `Grid stride ${stride} is less than minimum bytes per cell ${minBytesPerCell}`;
+      invalidFoxgloveGridError(this.renderer, renderable, message);
+      return false;
+    }
+
+    output.fieldReader = colorReader ?? zeroReader;
+    return true;
+  }
 
   private _updateFoxgloveGridRenderable(
     renderable: FoxgloveGridRenderable,
     foxgloveGrid: Grid,
     receiveTime: bigint,
+    settings: LayerSettingsFoxgloveGrid,
   ): void {
     renderable.userData.foxgloveGrid = foxgloveGrid;
     renderable.userData.pose = foxgloveGrid.pose;
     renderable.userData.receiveTime = receiveTime;
     renderable.userData.messageTime = toNanoSec(foxgloveGrid.timestamp);
     renderable.userData.frameId = this.renderer.normalizeFrameId(foxgloveGrid.frame_id);
-
+    if (foxgloveGrid.fields.length === 0) {
+      invalidFoxgloveGridError(
+        this.renderer,
+        renderable,
+        `Foxglove grid from topic ${renderable.userData.topic} has no fields to color by`,
+      );
+      return;
+    }
+    const { cell_stride } = foxgloveGrid;
     const { cols, rows } = getFoxgloveGridDimensions(foxgloveGrid);
     const size = cols * rows * foxgloveGrid.cell_stride;
     if (foxgloveGrid.data.length !== size) {
-      const message = `FoxgloveGrid data length (${foxgloveGrid.data.length}) is not equal to cols ${cols} * rows ${rows} * cell_stride ${foxgloveGrid.cell_stride}`;
+      const message = `FoxgloveGrid data length (${foxgloveGrid.data.length}) is not equal to cols ${cols} * rows ${rows} * cell_stride ${cell_stride}`;
       invalidFoxgloveGridError(this.renderer, renderable, message);
       return;
     }
+    if (!this._getFieldReader(tempFieldReader, foxgloveGrid, renderable, settings)) {
+      return;
+    }
 
-    const { width, height } = getGridImageDimensions(foxgloveGrid);
+    const data = foxgloveGrid.data;
+    const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+    const cellCount = rows * cols;
+
+    // Iterate the grid data to determine min/max color values (if needed)
+    minMaxColorValues(
+      tempMinMaxColor,
+      tempFieldReader.fieldReader,
+      view,
+      cols * rows,
+      cell_stride,
+      settings,
+      foxgloveGrid.fields.find((field) => settings.colorField === field.name)?.type ??
+        NumericType.UNKNOWN,
+    );
+
     let texture = renderable.userData.texture;
 
-    if (width !== texture.image.width || height !== texture.image.height) {
+    if (cols !== texture.image.width || rows !== texture.image.height) {
       // The image dimensions changed, regenerate the texture
       texture.dispose();
       texture = createTexture(foxgloveGrid);
@@ -222,10 +324,25 @@ export class FoxgloveGrid extends SceneExtension<FoxgloveGridRenderable> {
       renderable.userData.material.map = texture;
     }
 
-    // Update the occupancy grid texture
-    updateTexture(texture, foxgloveGrid, renderable.userData.settings);
+    const rgba = texture.image.data;
 
-    renderable.scale.set(foxgloveGrid.cell_size.x, foxgloveGrid.cell_size.y, 1);
+    const [minColorValue, maxColorValue] = tempMinMaxColor;
+    const { fieldReader } = tempFieldReader;
+    const colorConverter = getColorConverter(settings, minColorValue, maxColorValue);
+    for (let i = 0; i < cellCount; i++) {
+      const offset = i * foxgloveGrid.cell_stride;
+      const colorValue = fieldReader(view, offset);
+      colorConverter(tempColor, colorValue);
+      const rgbaOffset = i * 4;
+      rgba[rgbaOffset + 0] = Math.floor(tempColor.r * 255);
+      rgba[rgbaOffset + 1] = Math.floor(tempColor.g * 255);
+      rgba[rgbaOffset + 2] = Math.floor(tempColor.b * 255);
+      rgba[rgbaOffset + 3] = Math.floor(tempColor.a * 255);
+    }
+
+    texture.needsUpdate = true;
+
+    renderable.scale.set(foxgloveGrid.cell_size.x * cols, foxgloveGrid.cell_size.y * rows, 1);
   }
 
   public static Geometry(): THREE.PlaneGeometry {
@@ -249,12 +366,6 @@ function getFoxgloveGridDimensions(grid: Grid) {
   return {
     cols: grid.column_count,
     rows: grid.data.byteLength / grid.row_stride,
-  };
-}
-function getGridImageDimensions(grid: Grid) {
-  return {
-    width: grid.cell_size.x * grid.column_count,
-    height: grid.cell_size.y * (grid.data.byteLength / grid.row_stride),
   };
 }
 
@@ -296,55 +407,69 @@ function createMesh(
   return mesh;
 }
 
-const tempMinColor = { r: 0, g: 0, b: 0, a: 0 };
-const tempMaxColor = { r: 0, g: 0, b: 0, a: 0 };
+function numericTypeWidth(type: NumericType): number {
+  switch (type) {
+    case NumericType.INT8:
+    case NumericType.UINT8:
+      return 1;
+    case NumericType.INT16:
+    case NumericType.UINT16:
+      return 2;
+    case NumericType.INT32:
+    case NumericType.UINT32:
+    case NumericType.FLOAT32:
+      return 4;
+    case NumericType.FLOAT64:
+      return 8;
+    default:
+      return 0;
+  }
+}
 
-function updateTexture(
-  texture: THREE.DataTexture,
-  foxgloveGrid: Grid,
-  settings: LayerSettingsFoxgloveGrid,
-): void {
-  const { colorField: colorFieldName } = settings;
-  const colorField = foxgloveGrid.fields.find(({ name }) => colorFieldName === name);
-  const colorFieldOffset = colorField?.offset ?? 0;
-  const rgba = texture.image.data;
-  stringToRgba(tempMinColor, settings.minColor);
-  stringToRgba(tempMaxColor, settings.maxColor);
+const COLOR_FIELDS = new Set<string>(["rgb", "rgba", "bgr", "bgra", "abgr", "color"]);
 
-  srgbToLinearUint8(tempMinColor);
-  srgbToLinearUint8(tempMaxColor);
-
-  const data = foxgloveGrid.data;
-  let imageOffset = 0;
-  for (let i = 0; i < data.length; i += foxgloveGrid.cell_stride) {
-    const value = data[i + colorFieldOffset]! | 0;
-    if (value >= 0 && value <= 100) {
-      // Valid [0-100]
-      const t = value / 100;
-
-      const offset = imageOffset * 4;
-
-      // rgba[offset + 0] = t;
-      // rgba[offset + 1] = t;
-      // rgba[offset + 2] = t;
-      // rgba[offset + 3] = t;
-
-      if (t === 1) {
-        rgba[offset + 0] = 0;
-        rgba[offset + 1] = 0;
-        rgba[offset + 2] = 0;
-        rgba[offset + 3] = 0;
-      } else {
-        rgba[offset + 0] = tempMinColor.r + (tempMaxColor.r - tempMinColor.r) * t;
-        rgba[offset + 1] = tempMinColor.g + (tempMaxColor.g - tempMinColor.g) * t;
-        rgba[offset + 2] = tempMinColor.b + (tempMaxColor.b - tempMinColor.b) * t;
-        rgba[offset + 3] = tempMinColor.a + (tempMaxColor.a - tempMinColor.a) * t;
+// FIELD FN
+function autoSelectColorField(output: LayerSettingsFoxgloveGrid, foxgloveGrid: Grid): void {
+  // Prefer color fields first
+  for (const field of foxgloveGrid.fields) {
+    const fieldNameLower = field.name.toLowerCase();
+    if (COLOR_FIELDS.has(fieldNameLower)) {
+      output.colorField = field.name;
+      switch (fieldNameLower) {
+        case "rgb":
+          output.colorMode = "rgb";
+          output.rgbByteOrder = "abgr";
+          break;
+        default:
+        case "rgba":
+          output.colorMode = "rgba";
+          output.rgbByteOrder = "abgr";
+          break;
+        case "bgr":
+          output.colorMode = "rgb";
+          output.rgbByteOrder = "bgra";
+          break;
+        case "bgra":
+          output.colorMode = "rgba";
+          output.rgbByteOrder = "bgra";
+          break;
+        case "abgr":
+          output.colorMode = "rgba";
+          output.rgbByteOrder = "abgr";
+          break;
       }
+      return;
     }
-    imageOffset++;
   }
 
-  texture.needsUpdate = true;
+  // Fall back to using the first field
+  if (foxgloveGrid.fields.length > 0) {
+    const firstField = foxgloveGrid.fields[0]!;
+    output.colorField = firstField.name;
+    output.colorMode = "colormap";
+    output.colorMap = "turbo";
+    return;
+  }
 }
 
 function createMaterial(
@@ -352,7 +477,7 @@ function createMaterial(
   topic: string,
   settings: LayerSettingsFoxgloveGrid,
 ): THREE.MeshBasicMaterial {
-  const transparent = foxgloveGridHasTransparency(settings);
+  const transparent = colorHasTransparency(settings);
   return new THREE.MeshBasicMaterial({
     name: `${topic}:Material`,
     // Enable alpha clipping. Fully transparent (alpha=0) pixels are skipped
@@ -391,12 +516,6 @@ function createPickingMaterial(texture: THREE.DataTexture): THREE.ShaderMaterial
   });
 }
 
-function foxgloveGridHasTransparency(settings: LayerSettingsFoxgloveGrid): boolean {
-  stringToRgba(tempMinColor, settings.minColor);
-  stringToRgba(tempMaxColor, settings.maxColor);
-  return tempMinColor.a < 1 || tempMaxColor.a < 1;
-}
-
 function normalizePackedElementField(
   field: PartialMessage<PackedElementField> | undefined,
 ): PackedElementField {
@@ -405,13 +524,6 @@ function normalizePackedElementField(
     offset: field?.offset ?? 0,
     type: field?.type ?? 0,
   };
-}
-
-function srgbToLinearUint8(color: ColorRGBA): void {
-  color.r = Math.trunc(SRGBToLinear(color.r) * 255);
-  color.g = Math.trunc(SRGBToLinear(color.g) * 255);
-  color.b = Math.trunc(SRGBToLinear(color.b) * 255);
-  color.a = Math.trunc(color.a * 255);
 }
 
 function normalizeFoxgloveGrid(message: PartialMessage<Grid>): Grid {
@@ -430,3 +542,46 @@ function normalizeFoxgloveGrid(message: PartialMessage<Grid>): Grid {
     data: normalizeByteArray(message.data),
   };
 }
+
+function minMaxColorValues(
+  output: THREE.Vector2Tuple,
+  colorReader: FieldReader,
+  view: DataView,
+  cellCount: number,
+  cellStride: number,
+  settings: LayerSettingsFoxgloveGrid,
+  numericType: NumericType,
+): void {
+  if (SKIP_MIN_MAX.includes(settings.colorMode)) {
+    return;
+  }
+
+  const [numericMin, numericMax] = NumericTypeMinMaxValueMap[numericType];
+  let minColorValue = settings.minValue ?? numericMin;
+  let maxColorValue = settings.maxValue ?? numericMax;
+  if (settings.minValue == undefined || settings.maxValue == undefined) {
+    for (let i = 0; i < cellCount; i++) {
+      const offset = i * cellStride;
+      const colorValue = colorReader(view, offset);
+      minColorValue = Math.min(minColorValue, colorValue);
+      maxColorValue = Math.max(maxColorValue, colorValue);
+    }
+    minColorValue = settings.minValue ?? minColorValue;
+    maxColorValue = settings.maxValue ?? maxColorValue;
+  }
+
+  output[0] = minColorValue;
+  output[1] = maxColorValue;
+}
+
+const NumericTypeMinMaxValueMap: Record<NumericType, [number, number]> = {
+  [NumericType.UNKNOWN]: [Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY],
+  [NumericType.UINT8]: [0, 255],
+  [NumericType.UINT16]: [0, 65535],
+  [NumericType.UINT32]: [0, Math.pow(2, 32) - 1],
+  [NumericType.INT8]: [-128, 127],
+  [NumericType.INT16]: [-Math.pow(2, 16 - 1), -Math.pow(2, 16 - 1) - 1],
+  [NumericType.INT32]: [-Math.pow(2, 32 - 1), -Math.pow(2, 32 - 1) - 1],
+  [NumericType.FLOAT32]: [Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY],
+  [NumericType.FLOAT64]: [Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY],
+};
