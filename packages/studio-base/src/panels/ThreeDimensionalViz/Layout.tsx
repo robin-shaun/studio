@@ -11,10 +11,29 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { useTheme } from "@mui/material";
+import {
+  Alert,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  Link,
+  useTheme,
+} from "@mui/material";
 import { groupBy } from "lodash";
-import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from "react";
 import { useResizeDetector } from "react-resize-detector";
+import { useLatest } from "react-use";
 import { makeStyles } from "tss-react/mui";
 import { useDebouncedCallback } from "use-debounce";
 import { useImmerReducer } from "use-immer";
@@ -23,10 +42,13 @@ import { filterMap } from "@foxglove/den/collection";
 import { useShallowMemo } from "@foxglove/hooks";
 import { Worldview, CameraState, ReglClickInfo, MouseEventObject } from "@foxglove/regl-worldview";
 import { Time } from "@foxglove/rostime";
+import { AppSetting } from "@foxglove/studio-base/AppSetting";
 import * as PanelAPI from "@foxglove/studio-base/PanelAPI";
 import { useDataSourceInfo } from "@foxglove/studio-base/PanelAPI";
 import KeyListener from "@foxglove/studio-base/components/KeyListener";
+import PanelContext from "@foxglove/studio-base/components/PanelContext";
 import PanelToolbar from "@foxglove/studio-base/components/PanelToolbar";
+import { useAppConfigurationValue } from "@foxglove/studio-base/hooks";
 import useGlobalVariables from "@foxglove/studio-base/hooks/useGlobalVariables";
 import { Save3DConfig } from "@foxglove/studio-base/panels/ThreeDimensionalViz";
 import DebugStats from "@foxglove/studio-base/panels/ThreeDimensionalViz/DebugStats";
@@ -793,9 +815,101 @@ export default function Layout({
 
   const loadModelOptions = useMemo(() => ({ ignoreColladaUpAxis }), [ignoreColladaUpAxis]);
 
+  const [closedBanner, setClosedBanner] = useAppConfigurationValue<boolean>(
+    AppSetting.CLOSED_OLD3D_DEPRECATION_BANNER,
+  );
+  const [showUpgradeConfirmDialog, setShowUpgradeConfirmDialog] = useState(false);
+
+  const deprecationBanner =
+    closedBanner === true ? undefined : (
+      <Alert severity="info" color="warning" onClose={() => void setClosedBanner(true)}>
+        The 3D (Legacy) panel is now deprecated.{" "}
+        <Link color="inherit" onClick={() => setShowUpgradeConfirmDialog(true)}>
+          Upgrade to the new 3D panel
+        </Link>
+        .
+      </Alert>
+    );
+
+  const panelContext = useContext(PanelContext);
+  const latestConfig = useLatest(config);
+  const latestTransforms = useLatest(transforms);
+  const upgradeConfirmDialog = useMemo(
+    () => (
+      <Dialog open={showUpgradeConfirmDialog} onClose={() => setShowUpgradeConfirmDialog(false)}>
+        <DialogTitle>Upgrade to the new 3D panel?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            After upgrading this panel, you will need to reconfigure your selected topics.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button variant="outlined" onClick={() => setShowUpgradeConfirmDialog(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => {
+              panelContext?.replacePanel("3D", {
+                followTf: latestConfig.current.followTf,
+                followMode:
+                  latestConfig.current.followMode === "follow-orientation"
+                    ? "follow-pose"
+                    : latestConfig.current.followMode === "follow"
+                    ? "follow-position"
+                    : "follow-none",
+                cameraState: {
+                  ...latestConfig.current.cameraState,
+                  phi: ((latestConfig.current.cameraState.phi ?? Math.PI / 3) * 180) / Math.PI,
+                  thetaOffset:
+                    ((latestConfig.current.cameraState.thetaOffset ?? 0) * 180) / Math.PI,
+                  fovy: ((latestConfig.current.cameraState.fovy ?? Math.PI / 4) * 180) / Math.PI,
+                },
+                publish: {
+                  poseTopic: latestConfig.current.clickToPublishPoseTopic,
+                  pointTopic: latestConfig.current.clickToPublishPointTopic,
+                  poseEstimateTopic: latestConfig.current.clickToPublishPoseEstimateTopic,
+                  poseEstimateXDeviation: latestConfig.current.clickToPublishPoseEstimateXDeviation,
+                  poseEstimateYDeviation: latestConfig.current.clickToPublishPoseEstimateYDeviation,
+                  poseEstimateThetaDeviation:
+                    latestConfig.current.clickToPublishPoseEstimateThetaDeviation,
+                },
+                topics: Object.fromEntries(
+                  filterMap(latestConfig.current.checkedKeys, (key) =>
+                    key.startsWith("t:")
+                      ? [key.substring("t:".length), { visible: true }]
+                      : undefined,
+                  ),
+                ),
+                transforms: Object.fromEntries([
+                  ...Array.from(latestTransforms.current.frames().keys(), (id) => [
+                    `frame:${id}`,
+                    { visible: false },
+                  ]),
+                  ...filterMap(latestConfig.current.checkedKeys, (key) =>
+                    key.startsWith("ns:/tf:")
+                      ? ["frame:" + key.substring("ns:/tf:".length), { visible: true }]
+                      : undefined,
+                  ),
+                ]),
+              });
+              setShowUpgradeConfirmDialog(false);
+            }}
+          >
+            Replace panel
+          </Button>
+        </DialogActions>
+      </Dialog>
+    ),
+    [latestConfig, latestTransforms, panelContext, showUpgradeConfirmDialog],
+  );
+
   return (
     <ThreeDimensionalVizContext.Provider value={threeDimensionalVizContextValue}>
       <TopicTreeContext.Provider value={topicTreeData}>
+        <PanelToolbar helpContent={helpContent} />
+        {deprecationBanner}
+        {upgradeConfirmDialog}
         <div
           ref={containerRef}
           onClick={onControlsOverlayClick}
@@ -805,7 +919,6 @@ export default function Layout({
           data-testid="3dviz-layout"
         >
           <KeyListener keyDownHandlers={keyDownHandlers} />
-          <PanelToolbar helpContent={helpContent} />
           <div style={{ position: "absolute", width: "100%", height: "100%" }}>
             <div
               style={{
