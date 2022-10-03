@@ -6,18 +6,18 @@ import * as Comlink from "comlink";
 
 import { iterableTransferHandler } from "@foxglove/comlink-transfer-handlers";
 import { MessageEvent } from "@foxglove/studio";
-import type { DataSourceFactoryInitializeArgs } from "@foxglove/studio-base/context/PlayerSelectionContext";
 
 import type {
   GetBackfillMessagesArgs,
   IIterableSource,
   Initalization,
+  IterableSourceInitializeArgs,
   IteratorResult,
   MessageIteratorArgs,
 } from "./IIterableSource";
 
 type SourceFn = () => Promise<{
-  initialize: (args: DataSourceFactoryInitializeArgs) => IIterableSource;
+  initialize: (args: IterableSourceInitializeArgs) => IIterableSource;
 }>;
 
 const RegisteredSourceModuleLoaders: Record<string, SourceFn> = {
@@ -27,7 +27,7 @@ const RegisteredSourceModuleLoaders: Record<string, SourceFn> = {
 
 export type WorkerIterableSourceWorkerArgs = {
   sourceType: string;
-  factoryArgs: DataSourceFactoryInitializeArgs;
+  initArgs: IterableSourceInitializeArgs;
 };
 
 export class WorkerIterableSourceWorker implements IIterableSource {
@@ -44,7 +44,7 @@ export class WorkerIterableSourceWorker implements IIterableSource {
       throw new Error(`No source for type: ${this._args.sourceType}`);
     }
     const module = await loadRegisteredSourceModule();
-    this._source = module.initialize(this._args.factoryArgs);
+    this._source = module.initialize(this._args.initArgs);
     return await this._source.initialize();
   }
 

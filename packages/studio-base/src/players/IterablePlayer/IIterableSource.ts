@@ -106,3 +106,8 @@ export interface IIterableSource {
    */
   getBackfillMessages(args: GetBackfillMessagesArgs): Promise<MessageEvent<unknown>[]>;
 }
+
+export type IterableSourceInitializeArgs = {
+  file?: File;
+  url?: string;
+};

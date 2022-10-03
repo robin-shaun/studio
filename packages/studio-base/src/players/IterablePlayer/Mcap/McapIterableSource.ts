@@ -6,7 +6,6 @@ import { Mcap0IndexedReader, Mcap0Types } from "@mcap/core";
 
 import Log from "@foxglove/log";
 import { loadDecompressHandlers } from "@foxglove/mcap-support";
-import { DataSourceFactoryInitializeArgs } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import { MessageEvent } from "@foxglove/studio-base/players/types";
 
 import {
@@ -15,6 +14,7 @@ import {
   Initalization,
   MessageIteratorArgs,
   GetBackfillMessagesArgs,
+  IterableSourceInitializeArgs,
 } from "../IIterableSource";
 import { FileReadable } from "./FileReadable";
 import { McapIndexedIterableSource } from "./McapIndexedIterableSource";
@@ -114,11 +114,12 @@ export class McapIterableSource implements IIterableSource {
   }
 }
 
-export function initialize(args: DataSourceFactoryInitializeArgs): McapIterableSource {
-  const file = args.file;
-  if (!file) {
-    throw new Error("file arg required");
+export function initialize(args: IterableSourceInitializeArgs): McapIterableSource {
+  if (args.file) {
+    return new McapIterableSource({ type: "file", file: args.file });
+  } else if (args.url) {
+    return new McapIterableSource({ type: "url", url: args.url });
   }
 
-  return new McapIterableSource({ type: "file", file });
+  throw new Error("file or url required");
 }

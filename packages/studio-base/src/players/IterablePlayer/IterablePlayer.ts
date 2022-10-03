@@ -495,7 +495,7 @@ export class IterablePlayer implements Player {
         }
       }
 
-      // set the initial topics for the loader
+      this._presence = PlayerPresence.PRESENT;
     } catch (error) {
       this._setError(`Error initializing: ${error.message}`, error);
     }

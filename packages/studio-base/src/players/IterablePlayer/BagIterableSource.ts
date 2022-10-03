@@ -9,7 +9,6 @@ import { BlobReader } from "@foxglove/rosbag/web";
 import { parse as parseMessageDefinition } from "@foxglove/rosmsg";
 import { LazyMessageReader } from "@foxglove/rosmsg-serialization";
 import { compare } from "@foxglove/rostime";
-import type { DataSourceFactoryInitializeArgs } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import {
   PlayerProblem,
   MessageEvent,
@@ -28,6 +27,7 @@ import {
   Initalization,
   MessageIteratorArgs,
   GetBackfillMessagesArgs,
+  IterableSourceInitializeArgs,
 } from "./IIterableSource";
 
 type BagSource = { type: "file"; file: File } | { type: "remote"; url: string };
@@ -250,11 +250,12 @@ export class BagIterableSource implements IIterableSource {
   }
 }
 
-export function initialize(args: DataSourceFactoryInitializeArgs): BagIterableSource {
-  const file = args.file;
-  if (!file) {
-    throw new Error("file arg required");
+export function initialize(args: IterableSourceInitializeArgs): BagIterableSource {
+  if (args.file) {
+    return new BagIterableSource({ type: "file", file: args.file });
+  } else if (args.url) {
+    return new BagIterableSource({ type: "remote", url: args.url });
   }
 
-  return new BagIterableSource({ type: "file", file });
+  throw new Error("file or url required");
 }

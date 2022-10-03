@@ -6,8 +6,7 @@ import {
   IDataSourceFactory,
   DataSourceFactoryInitializeArgs,
 } from "@foxglove/studio-base/context/PlayerSelectionContext";
-import { IterablePlayer } from "@foxglove/studio-base/players/IterablePlayer";
-import { McapIterableSource } from "@foxglove/studio-base/players/IterablePlayer/Mcap/McapIterableSource";
+import { IterablePlayer, WorkerIterableSource } from "@foxglove/studio-base/players/IterablePlayer";
 import { Player } from "@foxglove/studio-base/players/types";
 
 export default class McapRemoteDataSourceFactory implements IDataSourceFactory {
@@ -25,7 +24,11 @@ export default class McapRemoteDataSourceFactory implements IDataSourceFactory {
       return;
     }
 
-    const source = new McapIterableSource({ type: "url", url });
+    const source = new WorkerIterableSource({
+      sourceType: "mcap",
+      initArgs: { url },
+    });
+
     return new IterablePlayer({
       metricsCollector: args.metricsCollector,
       source,
