@@ -9,6 +9,7 @@ import { BlobReader } from "@foxglove/rosbag/web";
 import { parse as parseMessageDefinition } from "@foxglove/rosmsg";
 import { LazyMessageReader } from "@foxglove/rosmsg-serialization";
 import { compare } from "@foxglove/rostime";
+import type { DataSourceFactoryInitializeArgs } from "@foxglove/studio-base/context/PlayerSelectionContext";
 import {
   PlayerProblem,
   MessageEvent,
@@ -198,7 +199,7 @@ export class BagIterableSource implements IIterableSource {
         // chunks (which will fill up memory space when we cache messages) when make a copy of the
         // data.
         const dataCopy = bagMsgEvent.data.slice();
-        const parsedMessage = reader.readMessage(dataCopy);
+        const parsedMessage = reader.readMessage(dataCopy).toObject();
 
         yield {
           connectionId,
@@ -247,4 +248,13 @@ export class BagIterableSource implements IIterableSource {
     messages.sort((a, b) => compare(a.receiveTime, b.receiveTime));
     return messages;
   }
+}
+
+export function initialize(args: DataSourceFactoryInitializeArgs): BagIterableSource {
+  const file = args.file;
+  if (!file) {
+    throw new Error("file arg required");
+  }
+
+  return new BagIterableSource({ type: "file", file });
 }

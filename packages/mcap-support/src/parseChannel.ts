@@ -169,7 +169,7 @@ export function parseChannel(channel: Channel): ParsedChannel {
             `Buffer not large enough: expected ${size} bytes, got ${data.byteLength}`,
           );
         }
-        return reader.readMessage(data);
+        return reader.readMessage(data).toObject();
       },
     };
   }
