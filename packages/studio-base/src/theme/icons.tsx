@@ -106,7 +106,7 @@ const icons: {
   Variable2: <Variable2Icon />,
   WeatherMoon: <WeatherMoon20Filled />,
   WeatherSunny: <WeatherSunny20Regular />,
-  "studio.ROS": <RosIcon />,
+  ROS: <RosIcon />,
 };
 
 export default icons;

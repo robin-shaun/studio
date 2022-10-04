@@ -11,7 +11,6 @@
 //   found at http://www.apache.org/licenses/LICENSE-2.0
 //   You may not use this file except in compliance with the License.
 
-import { setWarningCallback } from "@fluentui/react";
 import { useTheme } from "@mui/material";
 import { flatten } from "lodash";
 import { ComponentProps, ReactNode, useLayoutEffect, useRef, useState } from "react";
@@ -20,7 +19,6 @@ import { HTML5Backend } from "react-dnd-html5-backend";
 import { Mosaic, MosaicNode, MosaicWindow } from "react-mosaic-component";
 
 import { useShallowMemo } from "@foxglove/hooks";
-import Logger from "@foxglove/log";
 import { MessageEvent } from "@foxglove/studio";
 import MockMessagePipelineProvider from "@foxglove/studio-base/components/MessagePipeline/MockMessagePipelineProvider";
 import SettingsTreeEditor from "@foxglove/studio-base/components/SettingsTreeEditor";
@@ -59,20 +57,11 @@ import ThemeProvider from "@foxglove/studio-base/theme/ThemeProvider";
 import { RosDatatypes } from "@foxglove/studio-base/types/RosDatatypes";
 import { SavedProps, UserNodes } from "@foxglove/studio-base/types/panels";
 
-const log = Logger.getLogger(__filename);
-
 function noop() {}
 
 type Frame = {
   [topic: string]: MessageEvent<unknown>[];
 };
-
-setWarningCallback((msg) => {
-  if (msg.endsWith("was not registered.")) {
-    return;
-  }
-  log.warn(`[FluentUI] ${msg}`);
-});
 
 export type Fixture = {
   frame?: Frame;

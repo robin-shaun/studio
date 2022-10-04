@@ -11,7 +11,7 @@ import {
 
 // Restrict TS types for icons to allow only the icon names we've registered.
 declare global {
-  type CustomIconNames = "studio.ROS";
+  type CustomIconNames = "ROS";
   type RegisteredIconNames =
     | CustomIconNames
     | "Add"

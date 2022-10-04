@@ -2,8 +2,7 @@
 // License, v2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
-import { useTheme as useFluentTheme } from "@fluentui/react";
-import { Box, Stack, Typography } from "@mui/material";
+import { Box, Stack, Typography, useTheme } from "@mui/material";
 import { ReactNode } from "react";
 
 export default {
@@ -24,17 +23,15 @@ function ColorStory({ colors }: { colors: [string, string][] }) {
 }
 
 export function Palette(): JSX.Element {
-  const theme = useFluentTheme();
+  const theme = useTheme();
   return <ColorStory colors={Object.entries(theme.palette)} />;
 }
 
 export function SemanticColors(): JSX.Element {
-  const theme = useFluentTheme();
+  const theme = useTheme();
   return (
     <ColorStory
-      colors={Object.entries(theme.semanticColors).sort(([name1], [name2]) =>
-        name1.localeCompare(name2),
-      )}
+      colors={Object.entries(theme.palette).sort(([name1], [name2]) => name1.localeCompare(name2))}
     />
   );
 }
@@ -120,6 +117,4 @@ export function TypographyCatalog(): JSX.Element {
     </Stack>
   );
 }
-TypographyCatalog.parameters = {
-  colorScheme: "light",
-};
+TypographyCatalog.parameters = { colorScheme: "light" };
